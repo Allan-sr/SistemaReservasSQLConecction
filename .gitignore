@@ -1,0 +1,5 @@
+# Project exclude paths
+/SistemaReservas_Etapa1/backend/target/
+/SistemaReservas_Etapa1/compartido/target/
+/SistemaReservas_Etapa1/frontend/target/
+/SistemaReservas_Etapa1/prueba-conexion/target/
