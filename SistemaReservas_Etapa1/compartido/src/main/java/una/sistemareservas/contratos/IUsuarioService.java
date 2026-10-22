@@ -1,4 +1,5 @@
 package una.sistemareservas.contratos;
+import una.sistemareservas.modelo.Usuario;
 
 public interface IUsuarioService {
 
@@ -7,4 +8,6 @@ public interface IUsuarioService {
             String claveActual,
             String nuevaClave
     );
+
+    Usuario autenticar(String id, String clave);
 }

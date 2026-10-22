@@ -1,6 +1,8 @@
 package una.sistemareservas.datos;
 
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import una.sistemareservas.protocolo.Operaciones;
+
 import java.time.LocalTime;
 
 public class LocalTimeAdapter extends XmlAdapter<String, LocalTime> {

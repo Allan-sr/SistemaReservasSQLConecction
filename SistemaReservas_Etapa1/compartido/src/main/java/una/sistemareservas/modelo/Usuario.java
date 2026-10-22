@@ -1,13 +1,13 @@
 package una.sistemareservas.modelo;
-
+import java.io.Serializable;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlSeeAlso;
 
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlSeeAlso({Funcionario.class, Administrador.class})
-public abstract class Usuario {
-
+public abstract class Usuario implements Serializable {
+    private static final long serialVersionUID = 1L;
     protected String id;
     protected String clave;
     protected Rol rol;

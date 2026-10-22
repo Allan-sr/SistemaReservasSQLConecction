@@ -1,13 +1,13 @@
 package una.sistemareservas.negocio;
-
+import java.io.Serializable;
 import una.sistemareservas.modelo.Categoria;
 import una.sistemareservas.modelo.Reserva;
 
 import java.util.Collections;
 import java.util.List;
 
-public class ResultadoReserva {
-
+public class ResultadoReserva implements Serializable {
+    private static final long serialVersionUID = 1L;
     public enum Tipo {
         EXITO,
         SIN_DISPONIBILIDAD,

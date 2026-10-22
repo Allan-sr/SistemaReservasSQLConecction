@@ -1,5 +1,5 @@
 package una.sistemareservas.modelo;
-
+import java.io.Serializable;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -8,7 +8,8 @@ import jakarta.xml.bind.annotation.XmlTransient;
 
 @XmlRootElement(name = "recurso")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Recurso {
+public class Recurso implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @XmlElement
     private String id;
