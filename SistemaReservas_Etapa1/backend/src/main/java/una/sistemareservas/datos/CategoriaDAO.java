@@ -18,6 +18,12 @@ public class CategoriaDAO {
 
         File archivo = new File(RUTA_ARCHIVO);
 
+        System.out.println("Buscando categorias en: "
+                + archivo.getAbsolutePath());
+
+        System.out.println("Existe archivo: "
+                + archivo.exists());
+
         if (!archivo.exists()) {
             return new ArrayList<>();
         }

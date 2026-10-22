@@ -4,11 +4,12 @@ import una.sistemareservas.datos.CategoriaDAO;
 import una.sistemareservas.datos.RecursoDAO;
 import una.sistemareservas.modelo.Categoria;
 import una.sistemareservas.modelo.Recurso;
+import una.sistemareservas.contratos.ICategoriaService;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CategoriaService {
+public class CategoriaService implements ICategoriaService {
 
     private final CategoriaDAO categoriaDAO;
     private final RecursoDAO recursoDAO;
@@ -21,6 +22,7 @@ public class CategoriaService {
     /**
      * Lista todas las categorías.
      */
+    @Override
     public List<Categoria> listar() {
         return categoriaDAO.cargar();
     }

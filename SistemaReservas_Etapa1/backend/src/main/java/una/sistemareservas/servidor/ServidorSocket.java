@@ -2,6 +2,7 @@ package una.sistemareservas.servidor;
 
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
+import una.sistemareservas.negocio.CategoriaService;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -79,23 +80,47 @@ public class ServidorSocket {
         }
     }
 
+
     private Respuesta procesarPeticion(Peticion peticion) {
 
-        if ("PING".equals(peticion.getOperacion())) {
+        try {
+
+            if ("PING".equals(peticion.getOperacion())) {
+
+                return new Respuesta(
+                        true,
+                        "PONG",
+                        "Comunicación exitosa"
+                );
+            }
+
+            if ("CATEGORIA_LISTAR".equals(peticion.getOperacion())) {
+
+                CategoriaService servicio = new CategoriaService();
+
+                return new Respuesta(
+                        true,
+                        servicio.listar(),
+                        "Categorías obtenidas correctamente"
+                );
+            }
 
             return new Respuesta(
-                    true,
-                    "PONG",
-                    "Comunicación exitosa"
+                    false,
+                    null,
+                    "Operación no reconocida: " + peticion.getOperacion()
+            );
+
+        } catch (Exception e) {
+
+            return new Respuesta(
+                    false,
+                    null,
+                    "Error al procesar la petición: " + e.getMessage()
             );
         }
-
-        return new Respuesta(
-                false,
-                null,
-                "Operación no reconocida: " + peticion.getOperacion()
-        );
     }
+
 }
 
 
