@@ -9,7 +9,7 @@ import una.sistemareservas.modelo.EstadoReserva;
 import una.sistemareservas.modelo.Recurso;
 import una.sistemareservas.modelo.Reserva;
 import una.sistemareservas.negocio.RecursoService;
-import una.sistemareservas.negocio.ReportePDFService;
+import una.sistemareservas.util.ReportePDFService;
 import una.sistemareservas.negocio.ReservaService;
 import una.sistemareservas.vista.EstadisticasView;
 

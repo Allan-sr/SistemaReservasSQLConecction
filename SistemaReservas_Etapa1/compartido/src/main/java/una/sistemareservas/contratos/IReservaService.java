@@ -10,6 +10,7 @@ import java.util.List;
 public interface IReservaService {
 
     ResultadoReserva crear(
+            String funcionarioId,
             String actividad,
             LocalDate fecha,
             LocalTime horaInicio,
@@ -17,8 +18,9 @@ public interface IReservaService {
             List<String> categoriaIds
     );
 
-    ResultadoReserva cancelar(String id);
+    ResultadoReserva cancelar(String funcionarioId, String id);
 
-    List<Reserva> listarMisReservas();
+    List<Reserva> listarMisReservas(String funcionarioId);
+
+    List<Reserva> listar();
 }
-

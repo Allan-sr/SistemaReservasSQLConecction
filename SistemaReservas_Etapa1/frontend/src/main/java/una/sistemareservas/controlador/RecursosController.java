@@ -172,7 +172,7 @@ public class RecursosController {
         try {
 
             java.io.File archivo =
-                    una.sistemareservas.negocio.ReportePDFService
+                    una.sistemareservas.util.ReportePDFService
                             .generarRecursos(
                                     servicio.listar()
                             );

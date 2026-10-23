@@ -1,20 +1,21 @@
 package una.sistemareservas.controlador;
 
 import una.sistemareservas.modelo.Usuario;
-import una.sistemareservas.negocio.UsuarioService;
 import una.sistemareservas.util.Sesion;
 import una.sistemareservas.vista.LoginView;
 import una.sistemareservas.vista.MenuPrincipalView;
+import una.sistemareservas.contratos.IUsuarioService;
+import una.sistemareservas.proxy.Servicios;
 
 public class LoginController {
 
     private final LoginView vista;
-    private final UsuarioService servicio;
+    private final IUsuarioService servicio;
 
     public LoginController(LoginView vista) {
 
         this.vista = vista;
-        this.servicio = new UsuarioService();
+        this.servicio = Servicios.usuarios();
 
         iniciarEventos();
     }
@@ -51,8 +52,13 @@ public class LoginController {
             return;
         }
 
-        Usuario usuario =
-                servicio.autenticar(id, clave);
+        Usuario usuario;
+        try {
+            usuario= servicio.autenticar(id, clave);
+        } catch (RuntimeException e){
+            vista.mostrarMensaje("No se pudo comunicar con el servidor: " + e.getMessage());
+            return;
+        }
 
         if (usuario == null) {
 

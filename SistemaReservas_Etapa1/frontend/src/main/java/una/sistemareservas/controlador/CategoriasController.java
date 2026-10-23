@@ -148,7 +148,7 @@ public class CategoriasController {
 
     private void generarPDF() {
         try {
-            java.io.File archivo = una.sistemareservas.negocio.ReportePDFService.generarCategorias(servicio.listar());
+            java.io.File archivo = una.sistemareservas.util.ReportePDFService.generarCategorias(servicio.listar());
             vista.mostrarMensaje("PDF generado correctamente:\n" + archivo.getAbsolutePath());
             java.awt.Desktop.getDesktop().open(archivo);
         } catch (Exception ex) {

@@ -3,7 +3,9 @@ package una.sistemareservas.servidor;
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
 import una.sistemareservas.negocio.CategoriaService;
-
+import una.sistemareservas.modelo.Usuario;
+import una.sistemareservas.negocio.UsuarioService;
+import una.sistemareservas.protocolo.Operaciones;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -94,7 +96,7 @@ public class ServidorSocket {
                 );
             }
 
-            if ("CATEGORIA_LISTAR".equals(peticion.getOperacion())) {
+            if (Operaciones.CATEGORIA_LISTAR.equals(peticion.getOperacion())) {
 
                 CategoriaService servicio = new CategoriaService();
 
@@ -102,6 +104,23 @@ public class ServidorSocket {
                         true,
                         servicio.listar(),
                         "Categorías obtenidas correctamente"
+                );
+            }
+
+            if(Operaciones.USUARIO_AUTENTICAR.equals(peticion.getOperacion())){
+                Object[] datos=(Object[]) peticion.getDatos();
+                String id = (String) datos[0];
+                String clave = (String) datos[1];
+
+                UsuarioService servicio=new UsuarioService();
+                Usuario usuario= servicio.autenticar(id,clave);
+
+                return new Respuesta(
+                        true,
+                        usuario,
+                        usuario!=null
+                        ?"Autenticación exitosa"
+                                :"Usuario o contraseña incorrectos"
                 );
             }
 

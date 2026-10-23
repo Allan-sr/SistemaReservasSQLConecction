@@ -6,7 +6,7 @@ import una.sistemareservas.modelo.Reserva;
 import una.sistemareservas.negocio.CalendarioRecursosService;
 import una.sistemareservas.vista.CalendarioRecursosView;
 
-import una.sistemareservas.negocio.ReportePDFService;
+import una.sistemareservas.util.ReportePDFService;
 
 import java.io.File;
 import java.util.HashMap;

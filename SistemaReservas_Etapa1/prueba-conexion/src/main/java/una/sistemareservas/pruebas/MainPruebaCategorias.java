@@ -2,6 +2,7 @@
 package una.sistemareservas.pruebas;
 
 import una.sistemareservas.modelo.Categoria;
+import una.sistemareservas.protocolo.Operaciones;
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
 
@@ -25,7 +26,7 @@ public class MainPruebaCategorias {
                     new ObjectInputStream(socket.getInputStream());
 
             Peticion peticion =
-                    new Peticion("CATEGORIA_LISTAR", null);
+                    new Peticion(Operaciones.CATEGORIA_LISTAR, null);
 
             salida.writeObject(peticion);
             salida.flush();

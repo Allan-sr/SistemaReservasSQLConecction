@@ -2,12 +2,14 @@ package una.sistemareservas.negocio;
 
 import una.sistemareservas.datos.CategoriaDAO;
 import una.sistemareservas.datos.RecursoDAO;
+import una.sistemareservas.datos.UsuarioDAO;
 import una.sistemareservas.datos.ReservaDAO;
 import una.sistemareservas.modelo.Categoria;
 import una.sistemareservas.modelo.EstadoReserva;
 import una.sistemareservas.modelo.Funcionario;
 import una.sistemareservas.modelo.Recurso;
 import una.sistemareservas.modelo.Reserva;
+import una.sistemareservas.modelo.Usuario;
 import una.sistemareservas.contratos.IReservaService;
 
 import java.time.LocalDate;
@@ -21,12 +23,13 @@ public class ReservaService implements IReservaService{
     private final ReservaDAO reservaDAO;
     private final RecursoDAO recursoDAO;
     private final CategoriaDAO categoriaDAO;
-    private Funcionario funcionarioActual;
+    private final UsuarioDAO usuarioDAO;
 
     public ReservaService() {
         reservaDAO = new ReservaDAO();
         recursoDAO = new RecursoDAO();
         categoriaDAO = new CategoriaDAO();
+        usuarioDAO = new UsuarioDAO();
     }
 
     /**
@@ -36,23 +39,17 @@ public class ReservaService implements IReservaService{
         return categoriaDAO.cargar();
     }
 
-    public void setFuncionarioActual(Funcionario funcionario) {
-        this.funcionarioActual = funcionario;
-    }
-
     /**
-     * Lista las reservas del funcionario que tiene la sesión activa,
+     * Lista las reservas del funcionario indicado,
      * ordenadas por fecha y hora de inicio (más recientes primero).
      */
-    public List<Reserva> listarMisReservas() {
-
-        Funcionario funcionarioActual = obtenerFuncionarioActual();
+    public List<Reserva> listarMisReservas(String funcionarioId) {
 
         List<Reserva> resultado = new ArrayList<>();
 
         for (Reserva reserva : reservaDAO.cargar()) {
-            if (funcionarioActual != null
-                    && funcionarioActual.getId().equalsIgnoreCase(reserva.getFuncionarioId())) {
+            if (funcionarioId != null
+                    && funcionarioId.equalsIgnoreCase(reserva.getFuncionarioId())) {
                 resultado.add(reserva);
             }
         }
@@ -73,7 +70,7 @@ public class ReservaService implements IReservaService{
         return reservaDAO.cargar();
     }
 
-    public ResultadoReserva crear(String actividad, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, List<String> categoriaIds) {
+    public ResultadoReserva crear(String funcionarioId, String actividad, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, List<String> categoriaIds) {
 
         String error = validarDatos(actividad, fecha, horaInicio, horaFin, categoriaIds);
 
@@ -81,7 +78,7 @@ public class ReservaService implements IReservaService{
             return ResultadoReserva.error(error);
         }
 
-        Funcionario funcionarioActual = obtenerFuncionarioActual();
+        Funcionario funcionarioActual = buscarFuncionario(funcionarioId);
 
         if (funcionarioActual == null) {
             return ResultadoReserva.error("No hay un funcionario en sesión.");
@@ -133,10 +130,10 @@ public class ReservaService implements IReservaService{
     }
 
     /**
-     * Cancela una reserva futura del funcionario en sesión, liberando
+     * Cancela una reserva futura del funcionario indicado, liberando
      * todos los recursos que tenía asignados.
      */
-    public ResultadoReserva cancelar(String id) {
+    public ResultadoReserva cancelar(String funcionarioId, String id) {
 
         Reserva reserva = reservaDAO.buscarPorId(id);
 
@@ -144,10 +141,8 @@ public class ReservaService implements IReservaService{
             return ResultadoReserva.error("No existe una reserva con ese id.");
         }
 
-        Funcionario funcionarioActual = obtenerFuncionarioActual();
-
-        if (funcionarioActual == null
-                || !funcionarioActual.getId().equalsIgnoreCase(reserva.getFuncionarioId())) {
+        if (funcionarioId == null
+                || !funcionarioId.equalsIgnoreCase(reserva.getFuncionarioId())) {
             return ResultadoReserva.error("Esa reserva no pertenece al funcionario en sesión.");
         }
 
@@ -261,8 +256,19 @@ public class ReservaService implements IReservaService{
         return null;
     }
 
-    private Funcionario obtenerFuncionarioActual() {
-        return funcionarioActual;
+    private Funcionario buscarFuncionario(String id) {
+
+        if (id == null) {
+            return null;
+        }
+
+        Usuario usuario = usuarioDAO.buscarPorId(id);
+
+        if (usuario instanceof Funcionario funcionario) {
+            return funcionario;
+        }
+
+        return null;
     }
 
     private String generarSiguienteId() {

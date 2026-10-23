@@ -166,7 +166,7 @@ public class FuncionariosController {
 
         try {
 
-            File archivo = una.sistemareservas.negocio.ReportePDFService.generarFuncionarios(servicio.listar());
+            File archivo = una.sistemareservas.util.ReportePDFService.generarFuncionarios(servicio.listar());
             vista.mostrarMensaje("PDF generado correctamente:\n" + archivo.getAbsolutePath());
             java.awt.Desktop.getDesktop().open(archivo);
         } catch (Exception ex) {

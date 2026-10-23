@@ -3,7 +3,7 @@ package una.sistemareservas.controlador;
 import una.sistemareservas.modelo.Funcionario;
 import una.sistemareservas.modelo.Reserva;
 import una.sistemareservas.negocio.CalendarioActividadesService;
-import una.sistemareservas.negocio.ReportePDFService;
+import una.sistemareservas.util.ReportePDFService;
 import una.sistemareservas.vista.CalendarioActividadesView;
 
 import javax.swing.*;

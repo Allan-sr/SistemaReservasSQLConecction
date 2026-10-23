@@ -4,8 +4,10 @@ package una.sistemareservas.proxy;
 import una.sistemareservas.cliente.ClienteSocket;
 import una.sistemareservas.contratos.ICategoriaService;
 import una.sistemareservas.modelo.Categoria;
+import una.sistemareservas.protocolo.Operaciones;
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
+
 
 import java.util.List;
 
@@ -22,7 +24,7 @@ public class CategoriaServiceProxy implements ICategoriaService {
 
         try {
             Peticion peticion =
-                    new Peticion("CATEGORIA_LISTAR", null);
+                    new Peticion(Operaciones.CATEGORIA_LISTAR, null);
 
             Respuesta respuesta =
                     cliente.enviarPeticion(peticion);

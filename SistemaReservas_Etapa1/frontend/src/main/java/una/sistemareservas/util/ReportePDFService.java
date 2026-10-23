@@ -1,4 +1,4 @@
-package una.sistemareservas.negocio;
+package una.sistemareservas.util;
 
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -20,9 +20,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-
-import java.io.File;
-import java.time.format.DateTimeFormatter;
 
 public class ReportePDFService {
 
