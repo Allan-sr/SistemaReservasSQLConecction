@@ -1,30 +1,40 @@
 package una.sistemareservas.controlador;
 
+import una.sistemareservas.contratos.ICategoriaService;
+import una.sistemareservas.contratos.IReservaService;
 import una.sistemareservas.modelo.Categoria;
 import una.sistemareservas.modelo.Recurso;
 import una.sistemareservas.modelo.Reserva;
-import una.sistemareservas.negocio.*;
+import una.sistemareservas.modelo.Usuario;
+import una.sistemareservas.negocio.ResultadoReserva;
+import una.sistemareservas.proxy.Servicios;
+import una.sistemareservas.util.ReportePDFService;
+import una.sistemareservas.util.Sesion;
 import una.sistemareservas.vista.ReservasView;
+import una.sistemareservas.negocio.ReservaExtraidaDTO;
 
 import javax.swing.*;
 import java.io.File;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ReservaController {
 
     private final ReservasView vista;
-    private final ReservaService servicio;
+    private final IReservaService servicio;
+    private final ICategoriaService categoriaServicio;
 
     public ReservaController(ReservasView vista) {
         this.vista = vista;
-        this.servicio = new ReservaService();
+        this.servicio = Servicios.reservas();
+        this.categoriaServicio = Servicios.categorias();
 
-        // Cargar las categorías directamente desde CategoriaService
-        CategoriaService categoriaService = new CategoriaService();
-        vista.cargarCategorias(categoriaService.listar());
+        try {
+            vista.cargarCategorias(categoriaServicio.listar());
+        } catch (RuntimeException e) {
+            vista.mostrarError("No se pudieron cargar las categorías: " + e.getMessage());
+        }
 
         vista.limpiarFormulario();
         iniciarEventos();
@@ -37,7 +47,19 @@ public class ReservaController {
         vista.getBtnCancelar().addActionListener(e -> cancelar());
         vista.getBtnLimpiar().addActionListener(e -> vista.limpiarFormulario());
         vista.getBtnExtraerIA().addActionListener(e -> procesarFraseIA());
-        vista.getBtnImprimir().addActionListener(e -> generarReportePDF());    }
+        vista.getBtnImprimir().addActionListener(e -> generarReportePDF());
+    }
+
+    /**
+     * Id del funcionario con sesión activa. Viaja en cada petición, porque
+     * el servidor no guarda quién es el usuario entre una petición y otra.
+     */
+    private String idFuncionario() {
+
+        Usuario usuario = Sesion.getUsuarioActual();
+
+        return usuario == null ? null : usuario.getId();
+    }
 
     private void reservar() {
 
@@ -47,8 +69,15 @@ public class ReservaController {
         LocalTime horaFin = vista.getHoraFin();
         List<String> categoriaIds = vista.getCategoriaIdsSeleccionadas();
 
-        ResultadoReserva resultado =
-                servicio.crear(actividad, fecha, horaInicio, horaFin, categoriaIds);
+        ResultadoReserva resultado;
+
+        try {
+            resultado = servicio.crear(
+                    idFuncionario(), actividad, fecha, horaInicio, horaFin, categoriaIds);
+        } catch (RuntimeException e) {
+            vista.mostrarError("No se pudo registrar la reserva: " + e.getMessage());
+            return;
+        }
 
         if (resultado.esErrorValidacion()) {
 
@@ -98,7 +127,14 @@ public class ReservaController {
             return;
         }
 
-        ResultadoReserva resultado = servicio.cancelar(id);
+        ResultadoReserva resultado;
+
+        try {
+            resultado = servicio.cancelar(idFuncionario(), id);
+        } catch (RuntimeException e) {
+            vista.mostrarError("No se pudo cancelar la reserva: " + e.getMessage());
+            return;
+        }
 
         if (resultado.esErrorValidacion()) {
 
@@ -113,7 +149,12 @@ public class ReservaController {
     }
 
     private void cargarListado() {
-        vista.cargarTabla(servicio.listarMisReservas());
+
+        try {
+            vista.cargarTabla(servicio.listarMisReservas(idFuncionario()));
+        } catch (RuntimeException e) {
+            vista.mostrarError("No se pudo cargar el listado de reservas: " + e.getMessage());
+        }
     }
 
     private String nombresCategorias(List<Categoria> categorias) {
@@ -157,16 +198,8 @@ public class ReservaController {
         }
 
         try {
-            // Instanciamos el servicio de categorías si no existe como variable global
-            CategoriaService categoriaService = new CategoriaService();
-
-            // Obtener la lista de nombres/descripciones usando tu método listar()
-            List<String> categoriasDisponibles = categoriaService.listar().stream()
-                    .map(Categoria::getDescripcion)
-                    .collect(Collectors.toList());
-
-            AIExtractorService aiService = new AIExtractorService();
-            ReservaExtraidaDTO dto = aiService.extraerDatosReserva(frase, categoriasDisponibles);
+            // La IA se consulta en el servidor; aquí solo se recibe el resultado
+            ReservaExtraidaDTO dto = servicio.extraerDatosReserva(frase);
 
             // Auto-llenar los componentes de la vista con los tipos convertidos a LocalDate/LocalTime
             if (dto.getActividad() != null) {
@@ -203,8 +236,16 @@ public class ReservaController {
         // Obtener el ID de la reserva seleccionada en la tabla
         String idReserva = vista.getTablaReservas().getValueAt(filaSeleccionada, 0).toString();
 
-        // Buscar la reserva completa desde el servicio
-        List<Reserva> misReservas = servicio.listarMisReservas();
+        // Buscar la reserva completa desde el servidor
+        List<Reserva> misReservas;
+
+        try {
+            misReservas = servicio.listarMisReservas(idFuncionario());
+        } catch (RuntimeException e) {
+            vista.mostrarMensaje("No se pudo consultar la reserva: " + e.getMessage());
+            return;
+        }
+
         Reserva seleccionada = misReservas.stream()
                 .filter(r -> r.getId().equals(idReserva))
                 .findFirst()

@@ -1,16 +1,23 @@
 package una.sistemareservas.servidor;
 
+import una.sistemareservas.modelo.Reserva;
+import una.sistemareservas.modelo.Usuario;
+import una.sistemareservas.negocio.*;
+import una.sistemareservas.protocolo.Operaciones;
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
-import una.sistemareservas.negocio.CategoriaService;
-import una.sistemareservas.modelo.Usuario;
-import una.sistemareservas.negocio.UsuarioService;
-import una.sistemareservas.protocolo.Operaciones;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 public class ServidorSocket {
+
+    // Candado: evita que dos hilos reserven el mismo recurso a la vez
+    private static final Object CANDADO_RESERVAS = new Object();
 
     private final int puerto;
 
@@ -87,7 +94,7 @@ public class ServidorSocket {
 
         try {
 
-            if ("PING".equals(peticion.getOperacion())) {
+            if (Operaciones.PING.equals(peticion.getOperacion())) {
 
                 return new Respuesta(
                         true,
@@ -107,21 +114,85 @@ public class ServidorSocket {
                 );
             }
 
-            if(Operaciones.USUARIO_AUTENTICAR.equals(peticion.getOperacion())){
-                Object[] datos=(Object[]) peticion.getDatos();
+            if (Operaciones.USUARIO_AUTENTICAR.equals(peticion.getOperacion())) {
+
+                // Las casillas de la comanda, en el orden acordado: id, clave
+                Object[] datos = (Object[]) peticion.getDatos();
                 String id = (String) datos[0];
                 String clave = (String) datos[1];
 
-                UsuarioService servicio=new UsuarioService();
-                Usuario usuario= servicio.autenticar(id,clave);
+                UsuarioService servicio = new UsuarioService();
+                Usuario usuario = servicio.autenticar(id, clave);
 
+                // exito = true significa "se pudo procesar", aunque la clave sea mala
                 return new Respuesta(
                         true,
                         usuario,
-                        usuario!=null
-                        ?"Autenticación exitosa"
-                                :"Usuario o contraseña incorrectos"
+                        usuario != null
+                                ? "Autenticación exitosa"
+                                : "Usuario o contraseña incorrectos"
                 );
+            }
+
+            if (Operaciones.RESERVA_CREAR.equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+                String funcionarioId = (String) datos[0];
+                String actividad = (String) datos[1];
+                LocalDate fecha = (LocalDate) datos[2];
+                LocalTime horaInicio = (LocalTime) datos[3];
+                LocalTime horaFin = (LocalTime) datos[4];
+                @SuppressWarnings("unchecked")
+                List<String> categoriaIds = (List<String>) datos[5];
+
+                ResultadoReserva resultado;
+                synchronized (CANDADO_RESERVAS) {
+                    resultado = new ReservaService().crear(
+                            funcionarioId, actividad, fecha, horaInicio, horaFin, categoriaIds);
+                }
+
+                return new Respuesta(true, resultado, "Reserva procesada");
+            }
+
+            if (Operaciones.RESERVA_CANCELAR.equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+                String funcionarioId = (String) datos[0];
+                String id = (String) datos[1];
+
+                ResultadoReserva resultado;
+                synchronized (CANDADO_RESERVAS) {
+                    resultado = new ReservaService().cancelar(funcionarioId, id);
+                }
+
+                return new Respuesta(true, resultado, "Cancelación procesada");
+            }
+
+            if (Operaciones.RESERVA_LISTAR_MIAS.equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+                String funcionarioId = (String) datos[0];
+
+                List<Reserva> reservas = new ReservaService().listarMisReservas(funcionarioId);
+
+                return new Respuesta(true, reservas, "Reservas obtenidas");
+            }
+
+            if (Operaciones.RESERVA_LISTAR.equals(peticion.getOperacion())) {
+
+                List<Reserva> reservas = new ReservaService().listar();
+
+                return new Respuesta(true, reservas, "Reservas obtenidas");
+            }
+
+            if (Operaciones.RESERVA_EXTRAER_IA.equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+                String frase = (String) datos[0];
+
+                ReservaExtraidaDTO dto = new ReservaService().extraerDatosReserva(frase);
+
+                return new Respuesta(true, dto, "Datos extraídos correctamente");
             }
 
             return new Respuesta(
@@ -141,5 +212,3 @@ public class ServidorSocket {
     }
 
 }
-
-

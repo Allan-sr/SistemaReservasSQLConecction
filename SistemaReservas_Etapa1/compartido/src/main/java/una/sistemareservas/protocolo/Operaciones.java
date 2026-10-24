@@ -9,4 +9,5 @@ public class Operaciones {
     public static final String RESERVA_CANCELAR = "RESERVA_CANCELAR";
     public static final String RESERVA_LISTAR_MIAS = "RESERVA_LISTAR_MIAS";
     public static final String RESERVA_LISTAR = "RESERVA_LISTAR";
+    public static final String RESERVA_EXTRAER_IA = "RESERVA_EXTRAER_IA";
 }

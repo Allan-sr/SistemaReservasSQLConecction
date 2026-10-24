@@ -3,3 +3,12 @@
 /SistemaReservas_Etapa1/compartido/target/
 /SistemaReservas_Etapa1/frontend/target/
 /SistemaReservas_Etapa1/prueba-conexion/target/
+
+# Clave de la API de IA (nunca subir)
+config.properties
+
+# Datos generados por el servidor (XML del Proyecto #1)
+usuarios.xml
+categorias.xml
+recursos.xml
+reservas.xml

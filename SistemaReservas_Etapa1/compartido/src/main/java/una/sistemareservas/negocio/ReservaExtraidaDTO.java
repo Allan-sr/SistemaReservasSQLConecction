@@ -1,8 +1,12 @@
 package una.sistemareservas.negocio;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class ReservaExtraidaDTO {
+public class ReservaExtraidaDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private String actividad;
     private String fecha;        // Formato YYYY-MM-DD
     private String horaInicio;   // Formato HH:mm (ej. 08:00)

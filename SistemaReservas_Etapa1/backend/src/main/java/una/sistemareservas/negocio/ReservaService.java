@@ -130,6 +130,30 @@ public class ReservaService implements IReservaService{
     }
 
     /**
+     * Extrae los datos de una reserva a partir de una frase en lenguaje natural,
+     * usando la IA. La clave de la API vive solo en el servidor.
+     */
+    @Override
+    public ReservaExtraidaDTO extraerDatosReserva(String frase) {
+
+        if (frase == null || frase.trim().isEmpty()) {
+            throw new IllegalArgumentException("Debe ingresar una frase.");
+        }
+
+        List<String> descripciones = new ArrayList<>();
+
+        for (Categoria categoria : categoriaDAO.cargar()) {
+            descripciones.add(categoria.getDescripcion());
+        }
+
+        try {
+            return new AIExtractorService().extraerDatosReserva(frase, descripciones);
+        } catch (Exception e) {
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+    }
+
+    /**
      * Cancela una reserva futura del funcionario indicado, liberando
      * todos los recursos que tenía asignados.
      */
