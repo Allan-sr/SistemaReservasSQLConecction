@@ -8,10 +8,14 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import una.sistemareservas.modelo.EstadoReserva;
 import una.sistemareservas.modelo.Recurso;
 import una.sistemareservas.modelo.Reserva;
-import una.sistemareservas.negocio.RecursoService;
 import una.sistemareservas.util.ReportePDFService;
-import una.sistemareservas.negocio.ReservaService;
 import una.sistemareservas.vista.EstadisticasView;
+
+import una.sistemareservas.contratos.IRecursoService;
+import una.sistemareservas.contratos.IReservaService;
+import una.sistemareservas.proxy.RecursoServiceProxy;
+import una.sistemareservas.proxy.Servicios;
+import una.sistemareservas.cliente.ClienteSocket;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -26,17 +30,26 @@ import java.util.stream.Collectors;
 public class EstadisticasController {
 
     private final EstadisticasView vista;
-    private final ReservaService reservaService;
+    private final IReservaService reservaService;
+    private final IRecursoService recursoService;
 
     private List<Reserva> reservasActuales;
     private Map<String, Integer> datosActuales;
 
+
     public EstadisticasController(EstadisticasView vista) {
+
         this.vista = vista;
-        this.reservaService = new ReservaService();
+
+        ClienteSocket cliente = Servicios.getCliente();
+
+        this.reservaService = Servicios.reservas();
+
+        this.recursoService = new RecursoServiceProxy(cliente);
 
         iniciarEventos();
     }
+
 
     private void iniciarEventos() {
 
@@ -94,58 +107,52 @@ public class EstadisticasController {
         }
     }
 
+
     private Map<String, Integer> obtenerCategorias(
             List<Reserva> reservas) {
 
-        Map<String, Integer> conteo =
-                new LinkedHashMap<>();
+        Map<String, Integer> conteo = new LinkedHashMap<>();
 
-        RecursoService recursoService =
-                new RecursoService();
+        Map<String, Recurso> recursosPorId = new java.util.HashMap<>();
+
+        for (Recurso recurso : recursoService.listar()) {
+            recursosPorId.put(recurso.getId(), recurso);
+        }
 
         for (Reserva reserva : reservas) {
 
             if (reserva.getRecursos() != null
                     && !reserva.getRecursos().isEmpty()) {
 
-                for (Recurso recurso :
-                        reserva.getRecursos()) {
+                for (Recurso recurso : reserva.getRecursos()) {
 
                     if (recurso.getCategoria() != null) {
 
                         String categoria =
-                                recurso.getCategoria()
-                                        .getDescripcion();
+                                recurso.getCategoria().getDescripcion();
 
                         conteo.put(
                                 categoria,
-                                conteo.getOrDefault(
-                                        categoria, 0
-                                ) + 1
+                                conteo.getOrDefault(categoria, 0) + 1
                         );
                     }
                 }
 
             } else if (reserva.getRecursoIds() != null) {
 
-                for (String id :
-                        reserva.getRecursoIds()) {
+                for (String id : reserva.getRecursoIds()) {
 
-                    Recurso recurso =
-                            recursoService.buscarPorId(id);
+                    Recurso recurso = recursosPorId.get(id);
 
                     if (recurso != null
                             && recurso.getCategoria() != null) {
 
                         String categoria =
-                                recurso.getCategoria()
-                                        .getDescripcion();
+                                recurso.getCategoria().getDescripcion();
 
                         conteo.put(
                                 categoria,
-                                conteo.getOrDefault(
-                                        categoria, 0
-                                ) + 1
+                                conteo.getOrDefault(categoria, 0) + 1
                         );
                     }
                 }
@@ -154,6 +161,8 @@ public class EstadisticasController {
 
         return conteo;
     }
+
+
 
     private Map<String, Integer> obtenerActividadesPorSemana(
             List<Reserva> reservas) {

@@ -1,18 +1,29 @@
 
 package una.sistemareservas.servidor;
+
 import una.sistemareservas.util.DatosIniciales;
 
-import java.rmi.server.ExportException;
-
 public class MainServidor {
-    public static void main(String[] args) {
-        DatosIniciales.inicializar();
 
-        ServidorSocket servidor = new ServidorSocket(5000);
-        try{
+    public static void main(String[] args) {
+
+        try {
+            System.out.println("Inicializando datos del sistema...");
+
+            DatosIniciales.inicializar();
+
+            System.out.println("Iniciando servidor en puerto 5000...");
+
+            ServidorSocket servidor = new ServidorSocket(5000);
+
             servidor.iniciar();
-        }catch(Exception e){
-            System.err.println("No se pudo iniciar el servidor: " + e.getMessage());
+
+        } catch (Exception e) {
+            System.err.println(
+                    "No se pudo iniciar el servidor: " + e.getMessage()
+            );
+            e.printStackTrace();
         }
     }
 }
+

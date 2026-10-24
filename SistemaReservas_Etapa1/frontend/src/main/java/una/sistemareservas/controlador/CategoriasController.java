@@ -1,7 +1,9 @@
 package una.sistemareservas.controlador;
 
 import una.sistemareservas.modelo.Categoria;
-import una.sistemareservas.negocio.CategoriaService;
+import una.sistemareservas.contratos.ICategoriaService;
+import una.sistemareservas.proxy.CategoriaServiceProxy;
+import una.sistemareservas.cliente.ClienteSocket;
 import una.sistemareservas.vista.CategoriasView;
 
 import java.util.List;
@@ -9,17 +11,16 @@ import java.util.List;
 public class CategoriasController {
 
     private final CategoriasView vista;
-    private final CategoriaService servicio;
+    private final ICategoriaService servicio;
 
-    public CategoriasController(CategoriasView vista) {
 
+    public CategoriasController(CategoriasView vista, ClienteSocket cliente) {
         this.vista = vista;
-        this.servicio = new CategoriaService();
-
+        this.servicio = new CategoriaServiceProxy(cliente);
         iniciarEventos();
-
         cargarListado(servicio.listar());
     }
+
 
     private void iniciarEventos() {
 

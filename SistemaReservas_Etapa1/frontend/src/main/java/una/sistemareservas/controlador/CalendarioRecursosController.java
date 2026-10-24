@@ -3,8 +3,11 @@ package una.sistemareservas.controlador;
 import una.sistemareservas.modelo.Categoria;
 import una.sistemareservas.modelo.Recurso;
 import una.sistemareservas.modelo.Reserva;
-import una.sistemareservas.negocio.CalendarioRecursosService;
 import una.sistemareservas.vista.CalendarioRecursosView;
+
+import una.sistemareservas.contratos.ICalendarioRecursosService;
+import una.sistemareservas.proxy.CalendarioRecursosServiceProxy;
+import una.sistemareservas.cliente.ClienteSocket;
 
 import una.sistemareservas.util.ReportePDFService;
 
@@ -23,18 +26,20 @@ import java.util.List;
 public class CalendarioRecursosController {
 
     private final CalendarioRecursosView vista;
-    private final CalendarioRecursosService servicio;
+    private final ICalendarioRecursosService servicio;
+
 
     public CalendarioRecursosController(
-            CalendarioRecursosView vista) {
+            CalendarioRecursosView vista,
+            ClienteSocket cliente) {
 
         this.vista = vista;
-        this.servicio =
-                new CalendarioRecursosService();
+        this.servicio = new CalendarioRecursosServiceProxy(cliente);
 
         iniciarEventos();
         cargarCategorias();
     }
+
 
     private void iniciarEventos() {
         vista.getBtnConsultar().addActionListener(e -> consultar());

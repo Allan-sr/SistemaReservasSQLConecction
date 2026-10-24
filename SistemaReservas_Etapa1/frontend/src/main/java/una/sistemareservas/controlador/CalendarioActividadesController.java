@@ -2,9 +2,11 @@ package una.sistemareservas.controlador;
 
 import una.sistemareservas.modelo.Funcionario;
 import una.sistemareservas.modelo.Reserva;
-import una.sistemareservas.negocio.CalendarioActividadesService;
 import una.sistemareservas.util.ReportePDFService;
 import una.sistemareservas.vista.CalendarioActividadesView;
+import una.sistemareservas.contratos.ICalendarioActividadesService;
+import una.sistemareservas.proxy.CalendarioActividadesServiceProxy;
+import una.sistemareservas.cliente.ClienteSocket;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -19,23 +21,26 @@ import java.util.List;
 public class CalendarioActividadesController {
 
     private final CalendarioActividadesView vista;
-    private final CalendarioActividadesService servicio;
+    private final ICalendarioActividadesService servicio;
 
     private List<Reserva> reservasActuales;
     private LocalDate lunesActual;
 
+
     public CalendarioActividadesController(
-            CalendarioActividadesView vista) {
+            CalendarioActividadesView vista,
+            ClienteSocket cliente) {
 
         this.vista = vista;
 
         this.servicio =
-                new CalendarioActividadesService();
+                new CalendarioActividadesServiceProxy(cliente);
 
         iniciarEventos();
 
         consultar();
     }
+
 
     private void iniciarEventos() {
 

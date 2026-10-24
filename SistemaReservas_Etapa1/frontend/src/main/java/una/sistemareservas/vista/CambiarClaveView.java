@@ -1,6 +1,7 @@
 package una.sistemareservas.vista;
 
 import una.sistemareservas.controlador.CambiarClaveController;
+import una.sistemareservas.proxy.Servicios;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,6 +14,7 @@ public class CambiarClaveView extends JDialog {
 
     private JButton btnCambiar;
     private JButton btnCancelar;
+
 
     public CambiarClaveView(JFrame padre) {
 
@@ -28,8 +30,12 @@ public class CambiarClaveView extends JDialog {
 
         inicializarComponentes();
 
-        new CambiarClaveController(this);
+        new CambiarClaveController(
+                this,
+                Servicios.usuarios()
+        );
     }
+
 
     private void inicializarComponentes() {
 

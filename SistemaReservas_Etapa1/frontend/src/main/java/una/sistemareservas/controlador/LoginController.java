@@ -76,10 +76,12 @@ public class LoginController {
 
         vista.dispose();
 
+
         MenuPrincipalView menu =
-                new MenuPrincipalView();
+                new MenuPrincipalView(Servicios.getCliente());
 
         menu.setVisible(true);
+
     }
 
     private void cerrarPrograma() {

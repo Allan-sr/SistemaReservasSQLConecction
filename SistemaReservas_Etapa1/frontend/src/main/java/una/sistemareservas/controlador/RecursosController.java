@@ -1,20 +1,22 @@
 package una.sistemareservas.controlador;
 
 import una.sistemareservas.modelo.Recurso;
-import una.sistemareservas.negocio.RecursoService;
 import una.sistemareservas.vista.RecursosView;
+import una.sistemareservas.contratos.IRecursoService;
+import una.sistemareservas.proxy.RecursoServiceProxy;
+import una.sistemareservas.cliente.ClienteSocket;
 
 import java.util.List;
 
 public class RecursosController {
 
     private final RecursosView vista;
-    private final RecursoService servicio;
+    private final IRecursoService servicio;
 
-    public RecursosController(RecursosView vista) {
+    public RecursosController(RecursosView vista, ClienteSocket cliente) {
 
         this.vista = vista;
-        this.servicio = new RecursoService();
+        this.servicio = new RecursoServiceProxy(cliente);
 
         vista.cargarCategorias(servicio.listarCategorias());
 
@@ -22,6 +24,7 @@ public class RecursosController {
 
         cargarListado(servicio.listar());
     }
+
 
     private void iniciarEventos() {
 

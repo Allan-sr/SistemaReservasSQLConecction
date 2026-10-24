@@ -13,12 +13,16 @@ import una.sistemareservas.modelo.Rol;
 import una.sistemareservas.modelo.Usuario;
 import una.sistemareservas.util.Sesion;
 
+import una.sistemareservas.cliente.ClienteSocket;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.basic.BasicTabbedPaneUI;
 import java.awt.*;
 
 public class MenuPrincipalView extends JFrame {
+
+    private final ClienteSocket cliente;
 
     private static final Color AZUL = new Color(28, 111, 232);
     private static final Color AZUL_OSCURO = new Color(22, 57, 112);
@@ -31,18 +35,24 @@ public class MenuPrincipalView extends JFrame {
     private JButton btnCerrarSesion;
     private JButton btnCambiarClave;
 
-    public MenuPrincipalView() {
+
+    public MenuPrincipalView(ClienteSocket cliente) {
+
+        this.cliente = cliente;
 
         Usuario usuario = Sesion.getUsuarioActual();
+
         setTitle("Sistema de Reservas - " + usuario.getId());
         setSize(1220, 760);
         setMinimumSize(new Dimension(1050, 680));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
         configurarLookVisual();
         inicializarComponentes();
         configurarEventos();
     }
+
 
     private void configurarLookVisual() {
 
@@ -148,12 +158,48 @@ public class MenuPrincipalView extends JFrame {
                 BorderLayout.CENTER
         );
 
+
         raiz.add(
                 contenedorTabs,
                 BorderLayout.CENTER
         );
 
+        AlertasView panelAlertas = new AlertasView();
+
+        JPanel contenidoCentral = new JPanel(
+                new BorderLayout(12, 0)
+        );
+
+        contenidoCentral.setBackground(FONDO);
+
+        contenidoCentral.add(
+                contenedorTabs,
+                BorderLayout.CENTER
+        );
+
+        contenidoCentral.add(
+                panelAlertas,
+                BorderLayout.EAST
+        );
+
+        raiz.add(contenidoCentral, BorderLayout.CENTER);
+
+        panelAlertas.agregarAlerta(
+                "Reunion de equipo",
+                "Juan Mora",
+                "24/10/2026",
+                "10:00"
+        );
+
+        panelAlertas.agregarAlerta(
+                "Capacitacion",
+                "Pedro Arias",
+                "24/10/2026",
+                "14:00"
+        );
+
         add(raiz);
+
     }
 
     private JPanel construirEncabezado(
@@ -457,13 +503,12 @@ public class MenuPrincipalView extends JFrame {
         );
     }
 
+
     private void agregarFuncionarios() {
 
-        FuncionariosView vista =
-                new FuncionariosView();
+        FuncionariosView vista = new FuncionariosView();
 
-        new FuncionariosController(vista);
-
+        new FuncionariosController(vista, cliente);
         pestanas.addTab(
                 "Funcionarios",
                 iconoTab("F"),
@@ -471,12 +516,12 @@ public class MenuPrincipalView extends JFrame {
         );
     }
 
+
     private void agregarCategorias() {
 
-        CategoriasView vista =
-                new CategoriasView();
+        CategoriasView vista = new CategoriasView();
 
-        new CategoriasController(vista);
+        new CategoriasController(vista, cliente);
 
         pestanas.addTab(
                 "Categorías",
@@ -485,12 +530,13 @@ public class MenuPrincipalView extends JFrame {
         );
     }
 
+
     private void agregarRecursos() {
 
         RecursosView vista =
                 new RecursosView();
 
-        new RecursosController(vista);
+        new RecursosController(vista, cliente);
 
         pestanas.addTab(
                 "Recursos",
@@ -504,7 +550,7 @@ public class MenuPrincipalView extends JFrame {
         CalendarioRecursosView vista =
                 new CalendarioRecursosView();
 
-        new CalendarioRecursosController(vista);
+        new CalendarioRecursosController(vista, cliente);
 
         pestanas.addTab(
                 "Calendario",
@@ -518,7 +564,7 @@ public class MenuPrincipalView extends JFrame {
         CalendarioActividadesView vista =
                 new CalendarioActividadesView();
 
-        new CalendarioActividadesController(vista);
+        new CalendarioActividadesController(vista, cliente);
 
         pestanas.addTab(
                 "Actividades",

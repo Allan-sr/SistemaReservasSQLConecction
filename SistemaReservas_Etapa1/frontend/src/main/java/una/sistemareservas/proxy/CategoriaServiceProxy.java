@@ -63,5 +63,79 @@ public class CategoriaServiceProxy implements ICategoriaService {
             );
         }
     }
+
+
+    @Override
+    public List<Categoria> buscar(String descripcion) {
+        Respuesta respuesta = enviar(
+                Operaciones.CATEGORIA_BUSCAR,
+                descripcion
+        );
+
+        if (!(respuesta.getDatos() instanceof List<?> lista)) {
+            throw new IllegalStateException(
+                    "El servidor no devolvió una lista válida."
+            );
+        }
+
+        for (Object elemento : lista) {
+            if (!(elemento instanceof Categoria)) {
+                throw new IllegalStateException(
+                        "La lista contiene datos incorrectos."
+                );
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Categoria> categorias = (List<Categoria>) lista;
+
+        return categorias;
+    }
+
+    @Override
+    public String agregar(String descripcion) {
+        return (String) enviar(
+                Operaciones.CATEGORIA_AGREGAR,
+                descripcion
+        ).getDatos();
+    }
+
+    @Override
+    public String modificar(String id, String descripcion) {
+        return (String) enviar(
+                Operaciones.CATEGORIA_MODIFICAR,
+                new String[]{id, descripcion}
+        ).getDatos();
+    }
+
+    @Override
+    public String eliminar(String id) {
+        return (String) enviar(
+                Operaciones.CATEGORIA_ELIMINAR,
+                id
+        ).getDatos();
+    }
+
+    private Respuesta enviar(String operacion, Object datos) {
+        try {
+            Peticion peticion = new Peticion(operacion, datos);
+            Respuesta respuesta = cliente.enviarPeticion(peticion);
+
+            if (!respuesta.isExito()) {
+                throw new IllegalStateException(
+                        respuesta.getMensaje()
+                );
+            }
+
+            return respuesta;
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Error en " + operacion + ": " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
 }
 

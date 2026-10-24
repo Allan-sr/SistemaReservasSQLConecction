@@ -2,25 +2,30 @@ package una.sistemareservas.controlador;
 
 import java.io.File;
 import una.sistemareservas.modelo.Funcionario;
-import una.sistemareservas.negocio.FuncionarioService;
 import una.sistemareservas.vista.FuncionariosView;
+import una.sistemareservas.contratos.IFuncionarioService;
+import una.sistemareservas.proxy.FuncionarioServiceProxy;
+import una.sistemareservas.cliente.ClienteSocket;
 
 import java.util.List;
 
 public class FuncionariosController {
 
     private final FuncionariosView vista;
-    private final FuncionarioService servicio;
+    private final IFuncionarioService servicio;
 
-    public FuncionariosController(FuncionariosView vista) {
+
+    public FuncionariosController(FuncionariosView vista,
+                                  ClienteSocket cliente) {
 
         this.vista = vista;
-        this.servicio = new FuncionarioService();
+        this.servicio = new FuncionarioServiceProxy(cliente);
 
         iniciarEventos();
 
         cargarListado(servicio.listar());
     }
+
 
     private void iniciarEventos() {
 

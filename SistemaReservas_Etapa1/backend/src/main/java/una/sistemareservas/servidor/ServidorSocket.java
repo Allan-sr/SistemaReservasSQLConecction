@@ -6,6 +6,11 @@ import una.sistemareservas.negocio.*;
 import una.sistemareservas.protocolo.Operaciones;
 import una.sistemareservas.protocolo.Peticion;
 import una.sistemareservas.protocolo.Respuesta;
+import una.sistemareservas.modelo.Funcionario;
+import una.sistemareservas.negocio.CalendarioActividadesService;
+
+import una.sistemareservas.negocio.CalendarioRecursosService;
+import una.sistemareservas.modelo.Recurso;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -114,6 +119,139 @@ public class ServidorSocket {
                 );
             }
 
+
+            if (Operaciones.CATEGORIA_BUSCAR.equals(peticion.getOperacion())) {
+
+                String descripcion = (String) peticion.getDatos();
+
+                CategoriaService servicio = new CategoriaService();
+
+                return new Respuesta(
+                        true,
+                        servicio.buscar(descripcion),
+                        "Búsqueda realizada correctamente"
+                );
+            }
+
+            if (Operaciones.CATEGORIA_AGREGAR.equals(peticion.getOperacion())) {
+
+                String descripcion = (String) peticion.getDatos();
+
+                CategoriaService servicio = new CategoriaService();
+
+                String error = servicio.agregar(descripcion);
+
+                return new Respuesta(
+                        true,
+                        error,
+                        error == null
+                                ? "Categoría agregada correctamente"
+                                : error
+                );
+            }
+
+            if (Operaciones.CATEGORIA_MODIFICAR.equals(peticion.getOperacion())) {
+
+                String[] datos = (String[]) peticion.getDatos();
+
+                CategoriaService servicio = new CategoriaService();
+
+                String error = servicio.modificar(datos[0], datos[1]);
+
+                return new Respuesta(
+                        true,
+                        error,
+                        error == null
+                                ? "Categoría modificada correctamente"
+                                : error
+                );
+            }
+
+            if (Operaciones.CATEGORIA_ELIMINAR.equals(peticion.getOperacion())) {
+
+                String id = (String) peticion.getDatos();
+
+                CategoriaService servicio = new CategoriaService();
+
+                String error = servicio.eliminar(id);
+
+                return new Respuesta(
+                        true,
+                        error,
+                        error == null
+                                ? "Categoría eliminada correctamente"
+                                : error
+                );
+            }
+
+
+            if (Operaciones.FUNCIONARIO_LISTAR.equals(peticion.getOperacion())) {
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                return new Respuesta(true, servicio.listar(),
+                        "Funcionarios obtenidos correctamente");
+            }
+
+            if (Operaciones.FUNCIONARIO_BUSCAR.equals(peticion.getOperacion())) {
+
+                String[] datos = (String[]) peticion.getDatos();
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                return new Respuesta(true,
+                        servicio.buscar(datos[0], datos[1]),
+                        "Búsqueda realizada correctamente");
+            }
+
+            if (Operaciones.FUNCIONARIO_BUSCAR_ID.equals(peticion.getOperacion())) {
+
+                String id = (String) peticion.getDatos();
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                return new Respuesta(true, servicio.buscarPorId(id),
+                        "Consulta realizada correctamente");
+            }
+
+            if (Operaciones.FUNCIONARIO_AGREGAR.equals(peticion.getOperacion())) {
+
+                String[] datos = (String[]) peticion.getDatos();
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                String error = servicio.agregar(datos[0], datos[1], datos[2]);
+
+                return new Respuesta(true, error,
+                        error == null ? "Funcionario agregado" : error);
+            }
+
+            if (Operaciones.FUNCIONARIO_MODIFICAR.equals(peticion.getOperacion())) {
+
+                String[] datos = (String[]) peticion.getDatos();
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                String error = servicio.modificar(datos[0], datos[1], datos[2]);
+
+                return new Respuesta(true, error,
+                        error == null ? "Funcionario modificado" : error);
+            }
+
+            if (Operaciones.FUNCIONARIO_ELIMINAR.equals(peticion.getOperacion())) {
+
+                String id = (String) peticion.getDatos();
+
+                FuncionarioService servicio = new FuncionarioService();
+
+                String error = servicio.eliminar(id);
+
+                return new Respuesta(true, error,
+                        error == null ? "Funcionario eliminado" : error);
+            }
+
+
+
             if (Operaciones.USUARIO_AUTENTICAR.equals(peticion.getOperacion())) {
 
                 // Las casillas de la comanda, en el orden acordado: id, clave
@@ -193,6 +331,159 @@ public class ServidorSocket {
                 ReservaExtraidaDTO dto = new ReservaService().extraerDatosReserva(frase);
 
                 return new Respuesta(true, dto, "Datos extraídos correctamente");
+            }
+
+
+            if (Operaciones.RECURSO_LISTAR.equals(peticion.getOperacion())) {
+                return new Respuesta(true,
+                        new RecursoService().listar(),
+                        "Recursos obtenidos");
+            }
+
+            if (Operaciones.RECURSO_LISTAR_CATEGORIAS.equals(peticion.getOperacion())) {
+                return new Respuesta(true,
+                        new RecursoService().listarCategorias(),
+                        "Categorías obtenidas");
+            }
+
+            if (Operaciones.RECURSO_BUSCAR.equals(peticion.getOperacion())) {
+                String[] datos = (String[]) peticion.getDatos();
+
+                return new Respuesta(true,
+                        new RecursoService().buscar(datos[0], datos[1]),
+                        "Búsqueda realizada");
+            }
+
+            if (Operaciones.RECURSO_BUSCAR_ID.equals(peticion.getOperacion())) {
+                String id = (String) peticion.getDatos();
+
+                return new Respuesta(true,
+                        new RecursoService().buscarPorId(id),
+                        "Consulta realizada");
+            }
+
+            if (Operaciones.RECURSO_AGREGAR.equals(peticion.getOperacion())) {
+                String[] datos = (String[]) peticion.getDatos();
+
+                String error = new RecursoService()
+                        .agregar(datos[0], datos[1], datos[2]);
+
+                return new Respuesta(true, error,
+                        error == null ? "Recurso agregado" : error);
+            }
+
+            if (Operaciones.RECURSO_MODIFICAR.equals(peticion.getOperacion())) {
+                String[] datos = (String[]) peticion.getDatos();
+
+                String error = new RecursoService()
+                        .modificar(datos[0], datos[1], datos[2]);
+
+                return new Respuesta(true, error,
+                        error == null ? "Recurso modificado" : error);
+            }
+
+            if (Operaciones.RECURSO_ELIMINAR.equals(peticion.getOperacion())) {
+                String id = (String) peticion.getDatos();
+
+                String error = new RecursoService().eliminar(id);
+
+                return new Respuesta(true, error,
+                        error == null ? "Recurso eliminado" : error);
+            }
+
+
+            if (Operaciones.CALENDARIO_RECURSOS_CATEGORIAS
+                    .equals(peticion.getOperacion())) {
+
+                CalendarioRecursosService servicio =
+                        new CalendarioRecursosService();
+
+                return new Respuesta(
+                        true,
+                        servicio.listarCategorias(),
+                        "Categorías obtenidas correctamente"
+                );
+            }
+
+            if (Operaciones.CALENDARIO_RECURSOS_LISTAR
+                    .equals(peticion.getOperacion())) {
+
+                String categoriaId = (String) peticion.getDatos();
+
+                CalendarioRecursosService servicio =
+                        new CalendarioRecursosService();
+
+                return new Respuesta(
+                        true,
+                        servicio.listarRecursosPorCategoria(categoriaId),
+                        "Recursos obtenidos correctamente"
+                );
+            }
+
+            if (Operaciones.CALENDARIO_RECURSOS_HORAS
+                    .equals(peticion.getOperacion())) {
+
+                CalendarioRecursosService servicio =
+                        new CalendarioRecursosService();
+
+                return new Respuesta(
+                        true,
+                        servicio.obtenerHorasDelDia(),
+                        "Horas obtenidas correctamente"
+                );
+            }
+
+            if (Operaciones.CALENDARIO_RECURSOS_RESERVA
+                    .equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+
+                Recurso recurso = (Recurso) datos[0];
+                LocalDate fecha = (LocalDate) datos[1];
+                LocalTime hora = (LocalTime) datos[2];
+
+                CalendarioRecursosService servicio =
+                        new CalendarioRecursosService();
+
+                return new Respuesta(
+                        true,
+                        servicio.obtenerReservaDelRecurso(
+                                recurso,
+                                fecha,
+                                hora
+                        ),
+                        "Consulta realizada correctamente"
+                );
+            }
+
+            if (Operaciones.CALENDARIO_ACTIVIDADES_SEMANA
+                    .equals(peticion.getOperacion())) {
+
+                LocalDate fecha = (LocalDate) peticion.getDatos();
+
+                CalendarioActividadesService servicio =
+                        new CalendarioActividadesService();
+
+                return new Respuesta(
+                        true,
+                        servicio.listarReservasSemana(fecha),
+                        "Reservas semanales obtenidas correctamente"
+                );
+            }
+
+            if (Operaciones.CALENDARIO_ACTIVIDADES_LUNES
+                    .equals(peticion.getOperacion())) {
+
+                LocalDate fecha = (LocalDate) peticion.getDatos();
+
+                CalendarioActividadesService servicio =
+                        new CalendarioActividadesService();
+
+                return new Respuesta(
+                        true,
+                        servicio.obtenerLunes(fecha),
+                        "Lunes obtenido correctamente"
+                );
             }
 
             return new Respuesta(
