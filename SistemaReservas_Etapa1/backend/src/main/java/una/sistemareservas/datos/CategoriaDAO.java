@@ -1,128 +1,236 @@
+
 package una.sistemareservas.datos;
 
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import una.sistemareservas.modelo.Categoria;
 
-import java.io.File;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CategoriaDAO {
 
-    private static final String RUTA_ARCHIVO = "categorias.xml";
-
+    // Carga todas las categorias desde Oracle
     public List<Categoria> cargar() {
 
-        File archivo = new File(RUTA_ARCHIVO);
+        List<Categoria> categorias = new ArrayList<>();
 
-        System.out.println("Buscando categorias en: "
-                + archivo.getAbsolutePath());
+        String sql = "SELECT ID, DESCRIPCION FROM CATEGORIAS ORDER BY ID";
 
-        System.out.println("Existe archivo: "
-                + archivo.exists());
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-        if (!archivo.exists()) {
-            return new ArrayList<>();
+            while (rs.next()) {
+                Categoria categoria = new Categoria(
+                        rs.getString("ID"),
+                        rs.getString("DESCRIPCION")
+                );
+
+                categorias.add(categoria);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al cargar categorias desde Oracle", e
+            );
         }
-
-        try {
-            JAXBContext contexto = JAXBContext.newInstance(CategoriaLista.class);
-            Unmarshaller unmarshaller = contexto.createUnmarshaller();
-            CategoriaLista lista = (CategoriaLista) unmarshaller.unmarshal(archivo);
-            return lista.getCategorias();
-
-        } catch (JAXBException e) {
-            throw new RuntimeException("Error al cargar categorias.xml", e);
-        }
-    }
-
-    public void guardar(List<Categoria> categorias) {
-
-        try {
-            CategoriaLista lista = new CategoriaLista();
-            lista.setCategorias(categorias);
-
-            JAXBContext contexto = JAXBContext.newInstance(CategoriaLista.class);
-            Marshaller marshaller = contexto.createMarshaller();
-            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            marshaller.marshal(lista, new File(RUTA_ARCHIVO));
-
-        } catch (JAXBException e) {
-            throw new RuntimeException("Error al guardar categorias.xml", e);
-        }
-    }
-
-    public List<Categoria> agregar(String descripcion) {
-        List<Categoria> categorias = cargar();
-
-        String nuevoId = generarSiguienteId(categorias);
-        Categoria nueva = new Categoria(nuevoId, descripcion);
-        categorias.add(nueva);
-
-        guardar(categorias);
 
         return categorias;
     }
 
+    // Guarda una lista de categorias en Oracle.
+    // Inserta las nuevas y actualiza las existentes.
+    public void guardar(List<Categoria> categorias) {
+
+        String sql = """
+                MERGE INTO CATEGORIAS c
+                USING (
+                    SELECT ? AS ID, ? AS DESCRIPCION
+                    FROM DUAL
+                ) datos
+                ON (c.ID = datos.ID)
+                WHEN MATCHED THEN
+                    UPDATE SET c.DESCRIPCION = datos.DESCRIPCION
+                WHEN NOT MATCHED THEN
+                    INSERT (ID, DESCRIPCION)
+                    VALUES (datos.ID, datos.DESCRIPCION)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar()) {
+
+            conexion.setAutoCommit(false);
+
+            try (PreparedStatement ps =
+                         conexion.prepareStatement(sql)) {
+
+                for (Categoria categoria : categorias) {
+                    ps.setString(1, categoria.getId());
+                    ps.setString(2, categoria.getDescripcion());
+                    ps.executeUpdate();
+                }
+
+                conexion.commit();
+
+            } catch (SQLException e) {
+                conexion.rollback();
+                throw e;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al guardar categorias en Oracle", e
+            );
+        }
+    }
+
+    // Agrega una nueva categoria
+    public List<Categoria> agregar(String descripcion) {
+
+        String sql = """
+                INSERT INTO CATEGORIAS (ID, DESCRIPCION)
+                VALUES (?, ?)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar()) {
+
+            // Bloquea la tabla mientras genera el siguiente ID.
+            // Evita IDs duplicados entre clientes simultaneos.
+            conexion.setAutoCommit(false);
+
+            try (Statement bloqueo = conexion.createStatement()) {
+                bloqueo.execute("LOCK TABLE CATEGORIAS IN EXCLUSIVE MODE");
+            }
+
+            String nuevoId = generarSiguienteId(conexion);
+
+            try (PreparedStatement ps =
+                         conexion.prepareStatement(sql)) {
+
+                ps.setString(1, nuevoId);
+                ps.setString(2, descripcion);
+                ps.executeUpdate();
+
+                conexion.commit();
+
+            } catch (SQLException e) {
+                conexion.rollback();
+                throw e;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al agregar categoria en Oracle", e
+            );
+        }
+
+        return cargar();
+    }
+
+    // Modifica la descripcion
     public boolean modificar(String id, String nuevaDescripcion) {
-        List<Categoria> categorias = cargar();
 
-        for (Categoria categoria : categorias) {
-            if (categoria.getId().equalsIgnoreCase(id)) {
-                categoria.setDescripcion(nuevaDescripcion);
-                guardar(categorias);
-                return true;
-            }
+        String sql = """
+                UPDATE CATEGORIAS
+                SET DESCRIPCION = ?
+                WHERE UPPER(ID) = UPPER(?)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, nuevaDescripcion);
+            ps.setString(2, id);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al modificar categoria en Oracle", e
+            );
         }
-
-        return false;
     }
 
+    // Elimina una categoria
     public boolean eliminar(String id) {
-        List<Categoria> categorias = cargar();
 
-        for (int i = 0; i < categorias.size(); i++) {
-            if (categorias.get(i).getId().equalsIgnoreCase(id)) {
-                categorias.remove(i);
-                guardar(categorias);
-                return true;
-            }
+        String sql = """
+                DELETE FROM CATEGORIAS
+                WHERE UPPER(ID) = UPPER(?)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al eliminar categoria en Oracle", e
+            );
         }
-
-        return false;
     }
 
+    // Busca una categoria por ID
     public Categoria buscarPorId(String id) {
-        for (Categoria categoria : cargar()) {
-            if (categoria.getId().equalsIgnoreCase(id)) {
-                return categoria;
+
+        String sql = """
+                SELECT ID, DESCRIPCION
+                FROM CATEGORIAS
+                WHERE UPPER(ID) = UPPER(?)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                if (rs.next()) {
+                    return new Categoria(
+                            rs.getString("ID"),
+                            rs.getString("DESCRIPCION")
+                    );
+                }
             }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al buscar categoria en Oracle", e
+            );
         }
+
         return null;
     }
 
-    private String generarSiguienteId(List<Categoria> categorias) {
+    // Genera IDs como CAT-000001, CAT-000002...
+    private String generarSiguienteId(Connection conexion)
+            throws SQLException {
 
-        int maximo = 0;
+        String sql = """
+                SELECT NVL(MAX(
+                    CASE
+                        WHEN REGEXP_LIKE(ID, '^CAT-[0-9]{6}$')
+                        THEN TO_NUMBER(SUBSTR(ID, 5))
+                    END
+                ), 0) + 1 AS SIGUIENTE
+                FROM CATEGORIAS
+                """;
 
-        for (Categoria categoria : categorias) {
+        try (PreparedStatement ps =
+                     conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-            String id = categoria.getId();
-
-            if (id != null && id.startsWith("CAT-")) {
-
-                try {
-                    int numero = Integer.parseInt(id.substring(4));
-                    maximo = Math.max(maximo, numero);
-                } catch (NumberFormatException ignorado) {
-                    // Id con formato inesperado; se ignora para el cálculo.
-                }
+            if (rs.next()) {
+                return String.format(
+                        "CAT-%06d",
+                        rs.getInt("SIGUIENTE")
+                );
             }
         }
 
-        return String.format("CAT-%06d", maximo + 1);
+        throw new SQLException("No se pudo generar el ID");
     }
 }

@@ -1,172 +1,333 @@
-package una.sistemareservas.datos;
 
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
+package una.sistemareservas.datos;
 
 import una.sistemareservas.modelo.Administrador;
 import una.sistemareservas.modelo.Funcionario;
 import una.sistemareservas.modelo.Rol;
 import una.sistemareservas.modelo.Usuario;
 
-import java.io.File;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UsuarioDAO {
 
-    private static final String RUTA_ARCHIVO = "usuarios.xml";
-
     public UsuarioDAO() {
-        inicializarArchivo();
+        // Ahora los usuarios se almacenan en Oracle.
     }
 
-    /**
-     * Carga todos los usuarios desde el XML.
-     */
+    // Convierte una fila de Oracle en un objeto Usuario.
+    private Usuario construirUsuario(ResultSet rs)
+            throws SQLException {
 
+        String id = rs.getString("ID");
+        String clave = rs.getString("CLAVE");
+        Rol rol = Rol.valueOf(rs.getString("ROL"));
+
+        if (rol == Rol.ADMINISTRADOR) {
+            return new Administrador(id, clave, rol);
+        }
+
+        if (rol == Rol.FUNCIONARIO) {
+            return new Funcionario(
+                    id,
+                    clave,
+                    rol,
+                    rs.getString("NOMBRE"),
+                    rs.getString("TELEFONO")
+            );
+        }
+
+        throw new SQLException("Rol no reconocido: " + rol);
+    }
+
+    // Carga todos los usuarios desde Oracle.
     public List<Usuario> cargar() {
 
-        File archivo = new File(RUTA_ARCHIVO);
-        if (!archivo.exists()) {
-            return new ArrayList<>();
-        }
-        try {
+        List<Usuario> usuarios = new ArrayList<>();
 
-            JAXBContext contexto = JAXBContext.newInstance(UsuarioLista.class);
-            Unmarshaller unmarshaller = contexto.createUnmarshaller();
-            UsuarioLista lista = (UsuarioLista) unmarshaller.unmarshal(archivo);
-            return lista.getUsuarios();
+        String sql = """
+                SELECT u.ID, u.CLAVE, u.ROL,
+                       f.NOMBRE, f.TELEFONO
+                FROM USUARIOS u
+                LEFT JOIN FUNCIONARIOS f
+                    ON u.ID = f.ID
+                ORDER BY u.ID
+                """;
 
-        } catch (JAXBException e) {
-            throw new RuntimeException("Error al cargar usuarios.xml", e);
-        }
-    }
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-    /**
-     * Guarda todos los usuarios en el XML.
-     */
-    public void guardar(List<Usuario> usuarios) {
+            while (rs.next()) {
+                usuarios.add(construirUsuario(rs));
+            }
 
-        try {
-
-            UsuarioLista lista = new UsuarioLista();
-            lista.setUsuarios(usuarios);
-            JAXBContext contexto = JAXBContext.newInstance(UsuarioLista.class);
-            Marshaller marshaller = contexto.createMarshaller();
-            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            marshaller.marshal(lista, new File(RUTA_ARCHIVO)
-            );
-
-        } catch (JAXBException e) {
-
+        } catch (SQLException e) {
             throw new RuntimeException(
-                    "Error al guardar usuarios.xml", e
+                    "Error al cargar usuarios desde Oracle", e
             );
         }
+
+        return usuarios;
     }
 
-    /**
-     * Busca un usuario por su ID.
-     */
+    // Busca un usuario por su ID.
     public Usuario buscarPorId(String id) {
 
-        for (Usuario usuario : cargar()) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
 
-            if (usuario.getId().equalsIgnoreCase(id)) {
-                return usuario;
+        String sql = """
+                SELECT u.ID, u.CLAVE, u.ROL,
+                       f.NOMBRE, f.TELEFONO
+                FROM USUARIOS u
+                LEFT JOIN FUNCIONARIOS f
+                    ON u.ID = f.ID
+                WHERE UPPER(u.ID) = UPPER(?)
+                """;
+
+        try (Connection conexion = ConexionOracle.conectar();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, id.trim());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return construirUsuario(rs);
+                }
             }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al buscar usuario en Oracle", e
+            );
         }
 
         return null;
     }
 
-    /**
-     * Agrega un nuevo usuario.
-     */
+    // Agrega un usuario y, si corresponde, su funcionario.
     public boolean agregar(Usuario nuevoUsuario) {
-
-        List<Usuario> usuarios = cargar();
 
         if (buscarPorId(nuevoUsuario.getId()) != null) {
             return false;
         }
 
-        usuarios.add(nuevoUsuario);
+        String sqlUsuario = """
+                INSERT INTO USUARIOS (ID, CLAVE, ROL)
+                VALUES (?, ?, ?)
+                """;
 
-        guardar(usuarios);
+        String sqlFuncionario = """
+                INSERT INTO FUNCIONARIOS (ID, NOMBRE, TELEFONO)
+                VALUES (?, ?, ?)
+                """;
 
-        return true;
+        try (Connection conexion = ConexionOracle.conectar()) {
+
+            conexion.setAutoCommit(false);
+
+            try {
+                System.out.println(
+                        "GUARDANDO EN ORACLE: " + nuevoUsuario.getId()
+                );
+
+                try (PreparedStatement ps =
+                             conexion.prepareStatement(sqlUsuario)) {
+
+                    ps.setString(1, nuevoUsuario.getId());
+                    ps.setString(2, nuevoUsuario.getClave());
+                    ps.setString(3, nuevoUsuario.getRol().name());
+                    ps.executeUpdate();
+                }
+
+                if (nuevoUsuario instanceof Funcionario funcionario) {
+
+                    try (PreparedStatement ps =
+                                 conexion.prepareStatement(sqlFuncionario)) {
+
+                        ps.setString(1, funcionario.getId());
+                        ps.setString(2, funcionario.getNombre());
+                        ps.setString(3, funcionario.getTelefono());
+                        ps.executeUpdate();
+                    }
+                }
+
+                conexion.commit();
+
+                System.out.println(
+                        "USUARIO GUARDADO CORRECTAMENTE EN ORACLE"
+                );
+
+                return true;
+
+            } catch (SQLException e) {
+                conexion.rollback();
+                throw e;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al agregar usuario en Oracle", e
+            );
+        }
     }
 
-    /**
-     * Modifica un usuario existente.
-     */
+    // Modifica un usuario existente.
     public boolean modificar(Usuario usuarioModificado) {
 
-        List<Usuario> usuarios = cargar();
+        String sqlUsuario = """
+                UPDATE USUARIOS
+                SET CLAVE = ?, ROL = ?
+                WHERE UPPER(ID) = UPPER(?)
+                """;
 
-        for (int i = 0; i < usuarios.size(); i++) {
+        String sqlFuncionario = """
+                MERGE INTO FUNCIONARIOS f
+                USING (
+                    SELECT ? AS ID,
+                           ? AS NOMBRE,
+                           ? AS TELEFONO
+                    FROM DUAL
+                ) datos
+                ON (f.ID = datos.ID)
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        f.NOMBRE = datos.NOMBRE,
+                        f.TELEFONO = datos.TELEFONO
+                WHEN NOT MATCHED THEN
+                    INSERT (ID, NOMBRE, TELEFONO)
+                    VALUES (
+                        datos.ID,
+                        datos.NOMBRE,
+                        datos.TELEFONO
+                    )
+                """;
 
-            if (usuarios.get(i)
-                    .getId()
-                    .equalsIgnoreCase(usuarioModificado.getId())) {
+        String sqlEliminarFuncionario = """
+                DELETE FROM FUNCIONARIOS
+                WHERE UPPER(ID) = UPPER(?)
+                """;
 
-                usuarios.set(i, usuarioModificado);
+        try (Connection conexion = ConexionOracle.conectar()) {
 
-                guardar(usuarios);
+            conexion.setAutoCommit(false);
 
+            try {
+                int filas;
+
+                try (PreparedStatement ps =
+                             conexion.prepareStatement(sqlUsuario)) {
+
+                    ps.setString(1, usuarioModificado.getClave());
+                    ps.setString(2, usuarioModificado.getRol().name());
+                    ps.setString(3, usuarioModificado.getId());
+
+                    filas = ps.executeUpdate();
+                }
+
+                if (filas == 0) {
+                    conexion.rollback();
+                    return false;
+                }
+
+                if (usuarioModificado instanceof Funcionario funcionario) {
+
+                    try (PreparedStatement ps =
+                                 conexion.prepareStatement(sqlFuncionario)) {
+
+                        ps.setString(1, funcionario.getId());
+                        ps.setString(2, funcionario.getNombre());
+                        ps.setString(3, funcionario.getTelefono());
+                        ps.executeUpdate();
+                    }
+
+                } else {
+
+                    try (PreparedStatement ps =
+                                 conexion.prepareStatement(sqlEliminarFuncionario)) {
+
+                        ps.setString(1, usuarioModificado.getId());
+                        ps.executeUpdate();
+                    }
+                }
+
+                conexion.commit();
                 return true;
-            }
-        }
 
-        return false;
+            } catch (SQLException e) {
+                conexion.rollback();
+                throw e;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al modificar usuario en Oracle", e
+            );
+        }
     }
 
-    /**
-     * Elimina un usuario.
-     */
+    // Elimina un usuario.
     public boolean eliminar(String id) {
 
-        List<Usuario> usuarios = cargar();
+        String sqlFuncionario = """
+                DELETE FROM FUNCIONARIOS
+                WHERE UPPER(ID) = UPPER(?)
+                """;
 
-        for (int i = 0; i < usuarios.size(); i++) {
+        String sqlUsuario = """
+                DELETE FROM USUARIOS
+                WHERE UPPER(ID) = UPPER(?)
+                """;
 
-            if (usuarios.get(i)
-                    .getId()
-                    .equalsIgnoreCase(id)) {
+        try (Connection conexion = ConexionOracle.conectar()) {
 
-                usuarios.remove(i);
+            conexion.setAutoCommit(false);
 
-                guardar(usuarios);
+            try {
+                try (PreparedStatement ps =
+                             conexion.prepareStatement(sqlFuncionario)) {
 
-                return true;
+                    ps.setString(1, id);
+                    ps.executeUpdate();
+                }
+
+                int filas;
+
+                try (PreparedStatement ps =
+                             conexion.prepareStatement(sqlUsuario)) {
+
+                    ps.setString(1, id);
+                    filas = ps.executeUpdate();
+                }
+
+                conexion.commit();
+                return filas > 0;
+
+            } catch (SQLException e) {
+                conexion.rollback();
+                throw e;
             }
-        }
 
-        return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error al eliminar usuario en Oracle", e
+            );
+        }
     }
 
-    /**
-     * Crea usuarios iniciales si el XML todavía no existe.
-     */
-    private void inicializarArchivo() {
+    // Guarda usuarios existentes o agrega nuevos.
+    public void guardar(List<Usuario> usuarios) {
 
-        File archivo = new File(RUTA_ARCHIVO);
+        for (Usuario usuario : usuarios) {
 
-        if (archivo.exists()) {
-            return;
+            if (buscarPorId(usuario.getId()) == null) {
+                agregar(usuario);
+            } else {
+                modificar(usuario);
+            }
         }
-
-        List<Usuario> usuarios = new ArrayList<>();
-
-        Administrador administrador = new Administrador("admin", "admin", Rol.ADMINISTRADOR);
-        Funcionario funcionario = new Funcionario("1001", "1001", Rol.FUNCIONARIO, "Funcionario de prueba", "8888-8888");
-
-        usuarios.add(administrador);
-        usuarios.add(funcionario);
-
-        guardar(usuarios);
     }
 }
