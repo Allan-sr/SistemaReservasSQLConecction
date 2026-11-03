@@ -12,6 +12,7 @@ import una.sistemareservas.controlador.ReservaController;
 import una.sistemareservas.modelo.Rol;
 import una.sistemareservas.modelo.Usuario;
 import una.sistemareservas.util.Sesion;
+import una.sistemareservas.cliente.ListenerAlertas;
 
 import una.sistemareservas.cliente.ClienteSocket;
 
@@ -184,19 +185,18 @@ public class MenuPrincipalView extends JFrame {
 
         raiz.add(contenidoCentral, BorderLayout.CENTER);
 
-        panelAlertas.agregarAlerta(
-                "Reunion de equipo",
-                "Juan Mora",
-                "24/10/2026",
-                "10:00"
+        ListenerAlertas listenerAlertas = new ListenerAlertas(
+                cliente.getHost(),
+                5001,
+                Sesion.getUsuarioActual().getId(),
+                n -> panelAlertas.agregarAlerta(
+                        n.getActividad(),
+                        n.getFuncionarioNombre(),
+                        n.getFecha(),
+                        n.getHora()
+                )
         );
-
-        panelAlertas.agregarAlerta(
-                "Capacitacion",
-                "Pedro Arias",
-                "24/10/2026",
-                "14:00"
-        );
+        listenerAlertas.iniciar();
 
         add(raiz);
 

@@ -20,6 +20,10 @@ public class ClienteSocket {
         this.puerto = puerto;
     }
 
+    public String getHost() {
+        return host;
+    }
+
     public synchronized void conectar() throws IOException {
 
         if (estaConectado()) {

@@ -289,6 +289,26 @@ public class ServidorSocket {
                             funcionarioId, actividad, fecha, horaInicio, horaFin, categoriaIds);
                 }
 
+                if (resultado.esExitosa()) {
+                    Reserva r = resultado.getReserva();
+
+                    String nombre = r.getFuncionario() != null
+                            ? r.getFuncionario().getNombre()
+                            : r.getFuncionarioId();
+
+                    GestorNotificaciones.getInstancia().notificarATodosMenos(
+                            funcionarioId,
+                            new una.sistemareservas.negocio.NotificacionReserva(
+                                    r.getId(),
+                                    r.getActividad(),
+                                    r.getFuncionarioId(),
+                                    nombre,
+                                    r.getFecha().toString(),
+                                    r.getHoraInicio() + " - " + r.getHoraFin()
+                            )
+                    );
+                }
+
                 return new Respuesta(true, resultado, "Reserva procesada");
             }
 
@@ -493,7 +513,7 @@ public class ServidorSocket {
             );
 
         } catch (Exception e) {
-
+            e.printStackTrace();
             return new Respuesta(
                     false,
                     null,
