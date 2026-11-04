@@ -272,6 +272,18 @@ public class ServidorSocket {
                 );
             }
 
+            if (Operaciones.USUARIO_CAMBIAR_CLAVE.equals(peticion.getOperacion())) {
+
+                Object[] datos = (Object[]) peticion.getDatos();
+                String id = (String) datos[0];
+                String claveActual = (String) datos[1];
+                String nuevaClave = (String) datos[2];
+
+                boolean cambiada = new UsuarioService().cambiarClave(id, claveActual, nuevaClave);
+
+                return new Respuesta(true, cambiada, "Cambio de clave procesado");
+            }
+
             if (Operaciones.RESERVA_CREAR.equals(peticion.getOperacion())) {
 
                 Object[] datos = (Object[]) peticion.getDatos();

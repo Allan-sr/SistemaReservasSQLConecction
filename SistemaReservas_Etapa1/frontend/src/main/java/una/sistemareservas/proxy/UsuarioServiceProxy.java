@@ -46,6 +46,22 @@ public class UsuarioServiceProxy implements IUsuarioService {
 
     @Override
     public boolean cambiarClave(String idUsuario, String claveActual, String nuevaClave) {
-        throw new UnsupportedOperationException("Pendiente: enviar solicitud al Backend mediante sockets");
+        try {
+            Peticion peticion = new Peticion(
+                    Operaciones.USUARIO_CAMBIAR_CLAVE,
+                    new Object[]{idUsuario, claveActual, nuevaClave}
+            );
+
+            Respuesta respuesta = cliente.enviarPeticion(peticion);
+
+            if (!respuesta.isExito()) {
+                throw new RuntimeException(respuesta.getMensaje());
+            }
+
+            return Boolean.TRUE.equals(respuesta.getDatos());
+
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException("No se pudo comunicar con el servidor", e);
+        }
     }
 }

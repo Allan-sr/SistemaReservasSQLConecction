@@ -3,7 +3,7 @@
 EIF206 Programación 3, Universidad Nacional
 
 - **Proyecto #1:** aplicación de escritorio por capas con persistencia en XML.
-- **Proyecto #2 (en desarrollo):** versión distribuida Frontend-Backend con sockets, hilos y base de datos MySQL.
+- **Proyecto #2:** versión distribuida Frontend-Backend con sockets, hilos, base de datos Oracle y alertas asíncronas.
 
 ## Integrantes
 
@@ -15,12 +15,12 @@ EIF206 Programación 3, Universidad Nacional
 - **Java 26**
 - **Maven** (proyecto multi-módulo): gestión de dependencias y build
 - **Swing**: interfaz gráfica
-- **Sockets y hilos** (`java.net`, serialización de objetos): comunicación Frontend-Backend
-- **MySQL**: persistencia del Proyecto #2 (en desarrollo)
+- **Sockets y hilos** (`java.net`, serialización de objetos): comunicación Frontend-Backend y alertas
+- **Oracle Database XE** + JDBC (`ojdbc11`) + **HikariCP** (pool de conexiones): persistencia del Proyecto #2
 - **JAXB** (`jakarta.xml.bind` + `jaxb-runtime`): persistencia en XML del Proyecto #1
 - **iText**: generación de reportes en PDF
 - **JFreeChart**: gráficas de barras (Estadísticas)
-- **Gson**: manejo de JSON para la integración con IA
+- **Gson**: manejo de JSON para la integración con IA (Gemini)
 - **JUnit Jupiter** (Surefire + Failsafe): pruebas unitarias y de integración
 
 ---
@@ -34,18 +34,21 @@ La aplicación se divide en dos procesos independientes que se comunican por soc
 ```
    FRONTEND (Swing, MVC)                          BACKEND (servidor)
  ┌──────────────────────┐                     ┌──────────────────────────┐
- │ Vista                │                     │ ServidorSocket           │
+ │ Vista                │                     │ ServidorSocket (5000)    │
  │   ↓                  │                     │   ↓ (un hilo por cliente)│
  │ Controlador          │                     │ Service (negocio)        │
  │   ↓                  │      SOCKET         │   ↓                      │
- │ Proxy ── ClienteSocket ═══════════════════ │ DAO (datos) ──► MySQL    │
- └──────────────────────┘  Peticion/Respuesta └──────────────────────────┘
+ │ Proxy ── ClienteSocket ═══════════════════ │ DAO (datos) ──► Oracle   │
+ │                      │  Peticion/Respuesta │                          │
+ │ ListenerAlertas ◄═════════ puerto 5001 ═══ │ ServidorAlertas          │
+ └──────────────────────┘      (alertas)      └──────────────────────────┘
              └──────── COMPARTIDO: modelo, contratos, protocolo ────────┘
 ```
 
-- **Backend:** servidor sin interfaz gráfica. Escucha en un puerto, atiende cada conexión en un hilo propio y es el único que accederá a la base de datos.
-- **Frontend:** capa de presentación (MVC). No tiene ninguna referencia a la base de datos. Usa el patrón **Proxy**: los controladores trabajan contra una interfaz y un proxy local envía las peticiones al Service real, que es remoto.
-- **Alertas asíncronas (planificado):** cuando un usuario registra una reserva, el Backend notifica a los demás Frontend activos, que la muestran en un área de alertas.
+- **Backend:** servidor sin interfaz gráfica. Atiende cada conexión en un hilo propio y es el único que accede a la base de datos Oracle. La creación y cancelación de reservas se ejecutan bajo un candado para evitar doble reserva del mismo recurso.
+- **Frontend:** capa de presentación (MVC). No tiene ninguna referencia a la base de datos. Usa el patrón **Proxy**: los controladores trabajan contra una interfaz (módulo `compartido`) y un proxy local envía la petición por socket al Service real, que es remoto.
+- **Alertas asíncronas:** cada Frontend abre una segunda conexión, dedicada solo a recibir avisos (puerto 5001). Cuando un funcionario crea una reserva, el Backend avisa a todos los demás clientes conectados y la alerta aparece en el panel de la derecha, donde se puede **ver** el detalle o **descartar** con confirmación (el descarte es local). Las alertas son solo de la sesión activa.
+- **Conexiones a Oracle:** el Backend usa un pool de conexiones (HikariCP) para atender varios clientes a la vez sin agotar los recursos de Oracle.
 
 ## Estructura del proyecto
 
@@ -53,53 +56,92 @@ La aplicación se divide en dos procesos independientes que se comunican por soc
 SistemaReservas_Etapa1/
 ├── compartido/   Lo que ambos lados necesitan conocer
 │   ├── modelo/       Reserva, Usuario, Recurso, Categoria, ...
-│   ├── contratos/    Interfaces de los servicios (IReservaService, IUsuarioService)
+│   ├── contratos/    Interfaces de los servicios (IReservaService, IUsuarioService, ...)
 │   ├── protocolo/    Peticion, Respuesta, Operaciones
-│   └── negocio/      ResultadoReserva
+│   └── negocio/      ResultadoReserva, ReservaExtraidaDTO, NotificacionReserva
 ├── backend/      Servidor
-│   ├── servidor/     MainServidor, ServidorSocket
+│   ├── servidor/     MainServidor, ServidorSocket, ServidorAlertas, GestorNotificaciones
 │   ├── negocio/      Services con las reglas de negocio
-│   ├── datos/        DAOs
+│   ├── datos/        DAOs y ConexionOracle (pool HikariCP)
 │   └── util/         DatosIniciales
 ├── frontend/     Aplicación Swing
-│   ├── vista/        Ventanas
+│   ├── vista/        Ventanas (incluye AlertasView)
 │   ├── controlador/  Controladores (MVC)
 │   ├── proxy/        Proxies de los servicios (patrón Proxy)
-│   ├── cliente/      ClienteSocket
-│   └── util/         Sesion
-└── prueba-conexion/  Prueba inicial de comunicación por socket
+│   ├── cliente/      ClienteSocket, ListenerAlertas
+│   └── util/         Sesion, ReportePDFService
+└── prueba-conexion/  Clientes de prueba manual por socket
 ```
 
-## Estado actual del Proyecto #2
+## Funcionalidades
 
-### Actualización: Etapa 1 (base de comunicación) y Etapa 2 (login distribuido, en curso)
+- Login y cambio de clave.
+- Reservas (crear, cancelar, listar las propias, comprobante en PDF) y extracción de datos con IA a partir de una frase.
+- Funcionarios, Categorías y Recursos (administrador).
+- Calendarización de recursos y de actividades.
+- Estadísticas con gráficas y reportes PDF.
+- Alertas asíncronas de reservas creadas por otros usuarios.
 
-Hecho:
+## Base de datos (Oracle)
 
-- Proyecto Maven multi-módulo (`compartido`, `backend`, `frontend`).
-- Comunicación Cliente-Servidor por sockets con un hilo por cliente, con prueba `PING`/`PONG`.
-- Protocolo de mensajes: `Peticion` (operación + datos) y `Respuesta` (éxito + datos + mensaje).
-- Modelos del dominio `Serializable`, para poder enviarlos por el socket.
-- Contratos (interfaces) de servicio en `compartido`, incluyendo `autenticar` en `IUsuarioService`.
-- Clase `Operaciones` con los nombres de las operaciones compartidos por ambos lados.
-- `UsuarioServiceProxy.autenticar`: el proxy envía la petición de login al servidor.
+1. Instalar Oracle Database XE y abrir Oracle SQL Developer.
+2. Conectarse como administrador (`system`) y crear el usuario del proyecto:
+   ```sql
+   CREATE USER reservas IDENTIFIED BY reservas123;
+   GRANT CONNECT, RESOURCE TO reservas;
+   ALTER USER reservas QUOTA UNLIMITED ON USERS;
+   ```
+3. Crear una conexión con el usuario `reservas` (host `localhost`, puerto `1521`, SID `xe`).
+4. Abrir `db/SistemaReservas_Limpio.sql` con esa conexión y ejecutarlo con **F5** (Run Script). Crea las tablas y carga los datos de prueba. Al final debe mostrar: USUARIOS 5, FUNCIONARIOS 4, CATEGORIAS 5, RECURSOS 10, RESERVAS 5, RESERVA_RECURSOS 11.
 
-Pendiente:
+> El script contiene claves de prueba en texto plano; es solo para desarrollo. No ejecutarlo sobre tablas existentes.
 
-- Despachador de operaciones en el servidor (hoy solo reconoce `PING`) y respuesta de `USUARIO_AUTENTICAR`.
-- Controladores del Frontend usando interfaces y proxies, en lugar de los Services del Backend. **Mientras tanto, el módulo `frontend` aún no compila por completo.**
-- Proxies e interfaces del resto de módulos: reservas, funcionarios, categorías, recursos, calendarios y estadísticas.
-- Migración de los DAOs de XML a MySQL, y script de la base de datos.
-- Alertas asíncronas de nuevas reservas (mostrar, ver y descartar).
-- Pruebas unitarias (Surefire) y de integración (Failsafe) adaptadas a la nueva arquitectura.
+## Configuración
 
-## Cómo ejecutar lo disponible hoy
+La contraseña de la base de datos **no está en el código**: se lee de una variable de entorno.
 
-1. Clonar el repositorio y abrir la carpeta en IntelliJ IDEA como proyecto Maven.
-2. Ejecutar `una.sistemareservas.servidor.MainServidor` (módulo `backend`). Escucha en el puerto **5000**.
-3. Ejecutar `una.sistemareservas.cliente.MainClientePrueba` (módulo `frontend`). Envía un `PING` y debe imprimir `PONG`.
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `RESERVAS_DB_PASSWORD` | Sí | Contraseña del usuario de Oracle (en el ejemplo, `reservas123`) |
+| `RESERVAS_DB_USER` | No | Usuario de Oracle (por defecto `reservas`) |
+| `GEMINI_API_KEY` | Solo para IA | También puede ir en `config.properties` |
 
-> La aplicación completa con ventanas todavía no se puede ejecutar en la versión distribuida, porque el Frontend está en proceso de migración.
+En IntelliJ: *Run > Edit Configurations* > configuración de `MainServidor` > **Environment variables** > `RESERVAS_DB_PASSWORD=reservas123`.
+
+### Funcionalidad de Inteligencia Artificial
+
+La pantalla de Reservas permite llenar el formulario a partir de una frase en lenguaje natural, usando la API de Gemini (Google). La extracción se ejecuta en el **Backend**, y la clave se lee de `GEMINI_API_KEY` o de un archivo `config.properties` en la carpeta desde donde se ejecuta el servidor:
+
+```properties
+GEMINI_API_KEY=su-clave-aqui
+```
+
+`config.properties` está excluido del control de versiones (`.gitignore`). **El resto del sistema funciona sin esta clave.**
+
+## Cómo ejecutar
+
+1. Tener Oracle encendido con la base cargada (sección anterior).
+2. Abrir `SistemaReservas_Etapa1` en IntelliJ como proyecto Maven.
+3. Ejecutar `una.sistemareservas.servidor.MainServidor` (módulo `backend`) con `RESERVAS_DB_PASSWORD` configurada. Escucha en el puerto **5000** (peticiones) y **5001** (alertas).
+4. Ejecutar `una.sistemareservas.app.Main` (módulo `frontend`). Se puede ejecutar varias veces para simular varios usuarios (en *Edit Configurations*, activar *Allow multiple instances*). Para conectarse a otra máquina, pasar la IP del servidor como primer argumento.
+5. Usuarios de prueba:
+   - **Administrador:** `admin` / `admin`
+   - **Funcionarios:** `1001` / `1001`, `1002` / `1002`, `1003` / `1003`, `1004` / `1004`
+
+### Probar las alertas
+
+Abrir dos ventanas del Frontend, entrar con `1001` y `1002`, y crear una reserva con `1002`: la alerta aparece en la ventana de `1001`.
+
+## Pruebas
+
+- **Unitarias** (JUnit Jupiter + Surefire, clases `*Test`): validaciones de los servicios y serialización del protocolo. No necesitan base de datos.
+  ```
+  mvn test
+  ```
+- **De integración** (JUnit Jupiter + Failsafe, clases `*IT`): levantan el servidor real en puertos de prueba (5099 y 5098) y lo usan por sockets contra Oracle, incluyendo el flujo completo de la alerta asíncrona. Requieren Oracle encendido y `RESERVAS_DB_PASSWORD` definida.
+  ```
+  mvn verify
+  ```
 
 ---
 
@@ -112,8 +154,8 @@ Primera versión del sistema, desarrollada como aplicación de escritorio por ca
 1. Abrir la carpeta del Proyecto #1 en IntelliJ IDEA y cargarla como proyecto Maven (clic derecho en `pom.xml` > "Add as Maven Project", si no se detecta automáticamente).
 2. Ejecutar la clase `una.sistemareservas.app.Main`.
 3. En el primer arranque, el sistema crea automáticamente un usuario administrador y un funcionario de prueba:
-    - **Administrador:** id `admin`, clave `admin`
-    - **Funcionario:** id `1001`, clave `1001`
+   - **Administrador:** id `admin`, clave `admin`
+   - **Funcionario:** id `1001`, clave `1001`
 
 ## Funcionalidad de Inteligencia Artificial
 
