@@ -4,6 +4,7 @@ package una.sistemareservas.vista;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.function.Consumer;
 
 public class AlertasView extends JPanel {
 
@@ -55,7 +56,7 @@ public class AlertasView extends JPanel {
     }
 
     public void agregarAlerta(String actividad, String funcionario,
-                              String fecha, String hora) {
+            String fecha, String hora, Runnable alVer, Consumer<Runnable> alDescartar) {
 
         JPanel tarjeta = new JPanel(new BorderLayout(5, 8));
         tarjeta.setBackground(Color.WHITE);
@@ -89,32 +90,11 @@ public class AlertasView extends JPanel {
         JButton btnVer = new JButton("Ver");
         JButton btnDescartar = new JButton("X");
 
-        btnVer.addActionListener(e -> JOptionPane.showMessageDialog(
-                this,
-                "Actividad: " + actividad +
-                        "\nFuncionario: " + funcionario +
-                        "\nFecha: " + fecha +
-                        "\nHora: " + hora,
-                "Detalle de reserva",
-                JOptionPane.INFORMATION_MESSAGE
-        ));
+        btnVer.addActionListener(e -> alVer.run());
 
-        btnDescartar.addActionListener(e -> {
-            int respuesta = JOptionPane.showConfirmDialog(
-                    this,
-                    "¿Desea descartar esta alerta?",
-                    "Confirmar",
-                    JOptionPane.YES_NO_OPTION
-            );
-
-            if (respuesta == JOptionPane.YES_OPTION) {
-                listaAlertas.remove(tarjeta);
-                cantidadAlertas--;
-                lblCantidad.setText(String.valueOf(cantidadAlertas));
-                listaAlertas.revalidate();
-                listaAlertas.repaint();
-            }
-        });
+        btnDescartar.addActionListener(e ->
+                alDescartar.accept(() -> quitarAlerta(tarjeta))
+        );
 
         botones.add(btnVer);
         botones.add(btnDescartar);
@@ -126,6 +106,44 @@ public class AlertasView extends JPanel {
         listaAlertas.add(Box.createVerticalStrut(8));
 
         cantidadAlertas++;
+        lblCantidad.setText(String.valueOf(cantidadAlertas));
+
+        listaAlertas.revalidate();
+        listaAlertas.repaint();
+    }
+
+    public void mostrarDetalle(
+            String actividad,
+            String funcionario,
+            String fecha,
+            String hora) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Actividad: " + actividad
+                        + "\nFuncionario: " + funcionario
+                        + "\nFecha: " + fecha
+                        + "\nHora: " + hora,
+                "Detalle de reserva",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    public boolean confirmarDescarte() {
+        int respuesta = JOptionPane.showConfirmDialog(
+                this,
+                "¿Desea descartar esta alerta?",
+                "Confirmar",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        return respuesta == JOptionPane.YES_OPTION;
+    }
+
+    private void quitarAlerta(JPanel tarjeta) {
+        listaAlertas.remove(tarjeta);
+
+        cantidadAlertas--;
         lblCantidad.setText(String.valueOf(cantidadAlertas));
 
         listaAlertas.revalidate();

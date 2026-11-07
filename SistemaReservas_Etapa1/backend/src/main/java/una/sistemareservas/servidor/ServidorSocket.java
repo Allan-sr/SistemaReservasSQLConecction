@@ -48,49 +48,113 @@ public class ServidorSocket {
 
     private void atenderCliente(Socket cliente) {
 
-        try (
-                Socket conexion = cliente;
-                ObjectOutputStream salida =
-                        new ObjectOutputStream(conexion.getOutputStream());
-                ObjectInputStream entrada =
-                        new ObjectInputStream(conexion.getInputStream())
-        ) {
+        ObjectOutputStream salida = null;
 
+        try (Socket conexion = cliente) {
+
+            salida = new ObjectOutputStream(
+                    conexion.getOutputStream()
+            );
             salida.flush();
 
-            System.out.println(
-                    "Cliente conectado: " + conexion.getInetAddress()
+            ObjectInputStream entrada = new ObjectInputStream(
+                    conexion.getInputStream()
             );
 
-            while (!conexion.isClosed()) {
+            String usuarioId = null;
 
+            while (!conexion.isClosed()) {
                 Object objeto = entrada.readObject();
 
+                Respuesta respuesta;
+
                 if (!(objeto instanceof Peticion)) {
-                    salida.writeObject(
-                            new Respuesta(false, null, "Petición inválida")
+                    respuesta = new Respuesta(
+                            false, null, "Petición inválida"
                     );
-                    salida.flush();
-                    continue;
+
+                } else {
+                    Peticion peticion = (Peticion) objeto;
+                    String operacion = peticion.getOperacion();
+
+                    if ("ALERTAS_SUSCRIBIR".equals(operacion)) {
+
+                        if (usuarioId == null) {
+                            respuesta = new Respuesta(
+                                    false,
+                                    null,
+                                    "Debe iniciar sesión."
+                            );
+                        } else {
+                            GestorNotificaciones.getInstancia()
+                                    .suscribir(salida, usuarioId);
+
+                            respuesta = new Respuesta(
+                                    true,
+                                    null,
+                                    "Suscrito a alertas"
+                            );
+                        }
+
+                    } else if ("ALERTAS_DESUSCRIBIR".equals(operacion)) {
+
+                        GestorNotificaciones.getInstancia()
+                                .desuscribir(salida);
+
+                        usuarioId = null;
+
+                        respuesta = new Respuesta(
+                                true,
+                                null,
+                                "Sesión de alertas cerrada"
+                        );
+
+                    } else {
+                        if (Operaciones.USUARIO_AUTENTICAR
+                                .equals(operacion)) {
+
+                            GestorNotificaciones.getInstancia()
+                                    .desuscribir(salida);
+
+                            usuarioId = null;
+                        }
+
+                        respuesta = procesarPeticion(peticion);
+
+                        if (Operaciones.USUARIO_AUTENTICAR
+                                .equals(operacion)
+                                && respuesta.isExito()
+                                && respuesta.getDatos() instanceof Usuario) {
+
+                            Usuario usuario =
+                                    (Usuario) respuesta.getDatos();
+
+                            usuarioId = usuario.getId();
+                        }
+                    }
                 }
 
-                Peticion peticion = (Peticion) objeto;
-
-                System.out.println(
-                        "Operación recibida: " + peticion.getOperacion()
-                );
-
-                Respuesta respuesta = procesarPeticion(peticion);
-
-                salida.writeObject(respuesta);
-                salida.flush();
-                salida.reset();
+                // Respuestas y alertas comparten el mismo escritor.
+                synchronized (salida) {
+                    salida.writeObject(respuesta);
+                    salida.flush();
+                    salida.reset();
+                }
             }
 
         } catch (EOFException e) {
             System.out.println("Cliente desconectado.");
+
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error con cliente: " + e.getMessage());
+            System.err.println(
+                    "Conexión finalizada: " + e.getMessage()
+            );
+
+        } finally {
+            if (salida != null) {
+                GestorNotificaciones.getInstancia()
+                        .desuscribir(salida);
+            }
         }
     }
 

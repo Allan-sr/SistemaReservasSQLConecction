@@ -2,7 +2,7 @@ package una.sistemareservas.vista;
 
 import una.sistemareservas.controlador.CalendarioActividadesController;
 import una.sistemareservas.vista.CalendarioActividadesView;
-
+import una.sistemareservas.controlador.AlertasController;
 import una.sistemareservas.controlador.CalendarioRecursosController;
 import una.sistemareservas.controlador.CategoriasController;
 import una.sistemareservas.controlador.EstadisticasController;
@@ -12,8 +12,6 @@ import una.sistemareservas.controlador.ReservaController;
 import una.sistemareservas.modelo.Rol;
 import una.sistemareservas.modelo.Usuario;
 import una.sistemareservas.util.Sesion;
-import una.sistemareservas.cliente.ListenerAlertas;
-
 import una.sistemareservas.cliente.ClienteSocket;
 
 import javax.swing.*;
@@ -24,6 +22,7 @@ import java.awt.*;
 public class MenuPrincipalView extends JFrame {
 
     private final ClienteSocket cliente;
+    private AlertasController alertasController;
 
     private static final Color AZUL = new Color(28, 111, 232);
     private static final Color AZUL_OSCURO = new Color(22, 57, 112);
@@ -185,18 +184,12 @@ public class MenuPrincipalView extends JFrame {
 
         raiz.add(contenidoCentral, BorderLayout.CENTER);
 
-        ListenerAlertas listenerAlertas = new ListenerAlertas(
-                cliente.getHost(),
-                5001,
-                Sesion.getUsuarioActual().getId(),
-                n -> panelAlertas.agregarAlerta(
-                        n.getActividad(),
-                        n.getFuncionarioNombre(),
-                        n.getFecha(),
-                        n.getHora()
-                )
+        alertasController = new AlertasController(
+                panelAlertas,
+                cliente
         );
-        listenerAlertas.iniciar();
+
+        alertasController.iniciar();
 
         add(raiz);
 
@@ -907,6 +900,10 @@ public class MenuPrincipalView extends JFrame {
                             JOptionPane.YES_OPTION) {
 
                         return;
+                    }
+
+                    if (alertasController != null) {
+                        alertasController.detener();
                     }
 
                     Sesion.cerrar();

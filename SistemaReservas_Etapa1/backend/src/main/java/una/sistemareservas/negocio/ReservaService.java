@@ -91,10 +91,18 @@ public class ReservaService implements IReservaService{
 
         for (String categoriaId : categoriaIds) {
 
+            if (categoriaId == null || categoriaId.isBlank()) {
+                return ResultadoReserva.error(
+                        "Debe seleccionar una categoría válida."
+                );
+            }
+
             Categoria categoria = categoriaDAO.buscarPorId(categoriaId);
 
             if (categoria == null) {
-                continue;
+                return ResultadoReserva.error(
+                        "La categoría seleccionada ya no existe. Actualice la lista de categorías."
+                );
             }
 
             Recurso recursoDisponible =

@@ -28,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class ServidorSocketIT {
 
     private static final int PUERTO = 5099;
-    private static final int PUERTO_ALERTAS = 5098;
 
     @BeforeAll
     static void iniciarServidores() throws Exception {
@@ -42,10 +41,6 @@ class ServidorSocketIT {
         });
         servidor.setDaemon(true);
         servidor.start();
-
-        Thread alertas = new Thread(() -> new ServidorAlertas(PUERTO_ALERTAS).iniciar());
-        alertas.setDaemon(true);
-        alertas.start();
 
         Thread.sleep(800); // le damos tiempo a abrir los puertos
     }
@@ -64,6 +59,19 @@ class ServidorSocketIT {
 
             return (Respuesta) entrada.readObject();
         }
+    }
+
+    private Respuesta enviarEnConexion(ObjectOutputStream salida, ObjectInputStream entrada,
+            String operacion, Object datos) throws Exception {
+        salida.writeObject(new Peticion(operacion, datos));
+        salida.flush();
+        salida.reset();
+
+        Object mensaje = entrada.readObject();
+
+        assertInstanceOf(Respuesta.class, mensaje);
+
+        return (Respuesta) mensaje;
     }
 
     @Test
@@ -114,49 +122,145 @@ class ServidorSocketIT {
     }
 
     @Test
-    void crearReservaAvisaALosOtrosUsuariosYSePuedeCancelar() throws Exception {
+    void crearReservaAvisaALosOtrosUsuariosYSePuedeCancelar()
+            throws Exception {
 
-        // 1) El funcionario 1001 se suscribe a las alertas (como hace el frontend)
-        try (Socket oyente = new Socket("localhost", PUERTO_ALERTAS)) {
+        // El usuario 1001 usará una sola conexión.
+        try (Socket oyente = new Socket("localhost", PUERTO)) {
 
-            oyente.setSoTimeout(5000); // si en 5 s no llega nada, la prueba falla
+            oyente.setSoTimeout(5000);
 
-            ObjectOutputStream salida = new ObjectOutputStream(oyente.getOutputStream());
+            ObjectOutputStream salida =
+                    new ObjectOutputStream(oyente.getOutputStream());
             salida.flush();
-            ObjectInputStream entrada = new ObjectInputStream(oyente.getInputStream());
 
-            salida.writeObject("1001");
-            salida.flush();
-            Thread.sleep(500); // tiempo para que el servidor registre la suscripción
+            ObjectInputStream entrada =
+                    new ObjectInputStream(oyente.getInputStream());
 
-            // 2) El funcionario 1002 crea una reserva lejana, para no chocar con otras
+            // 1. Iniciar sesión en esa conexión.
+            Respuesta login = enviarEnConexion(
+                    salida,
+                    entrada,
+                    Operaciones.USUARIO_AUTENTICAR,
+                    new Object[]{"1001", "1001"}
+            );
+
+            assertTrue(login.isExito());
+            assertInstanceOf(Usuario.class, login.getDatos());
+            assertEquals(
+                    "1001",
+                    ((Usuario) login.getDatos()).getId()
+            );
+
+            // 2. Suscribir esa misma conexión a las alertas.
+            Respuesta suscripcion = enviarEnConexion(
+                    salida,
+                    entrada,
+                    "ALERTAS_SUSCRIBIR",
+                    null
+            );
+
+            assertTrue(
+                    suscripcion.isExito(),
+                    suscripcion.getMensaje()
+            );
+
+            // 3. Comprobar que sigue atendiendo peticiones.
+            Respuesta ping = enviarEnConexion(
+                    salida,
+                    entrada,
+                    Operaciones.PING,
+                    null
+            );
+
+            assertTrue(ping.isExito());
+            assertEquals("PONG", ping.getDatos());
+
+            // 4. Otro usuario crea una reserva.
             LocalDate fecha = LocalDate.now().plusDays(400);
 
-            Respuesta creada = enviar(Operaciones.RESERVA_CREAR, new Object[]{
-                    "1002", "Prueba de integracion", fecha,
-                    LocalTime.of(3, 0), LocalTime.of(4, 0),
-                    new ArrayList<>(List.of("CAT-000004"))
-            });
+            Respuesta creada = enviar(
+                    Operaciones.RESERVA_CREAR,
+                    new Object[]{
+                            "1002",
+                            "Prueba de integracion",
+                            fecha,
+                            LocalTime.of(3, 0),
+                            LocalTime.of(4, 0),
+                            new ArrayList<>(List.of("CAT-000004"))
+                    }
+            );
 
-            assertTrue(creada.isExito());
-            ResultadoReserva resultado = (ResultadoReserva) creada.getDatos();
-            assertTrue(resultado.esExitosa(), "La reserva debió crearse");
+            assertTrue(creada.isExito(), creada.getMensaje());
+            assertInstanceOf(
+                    ResultadoReserva.class,
+                    creada.getDatos()
+            );
+
+            ResultadoReserva resultado =
+                    (ResultadoReserva) creada.getDatos();
+
+            assertTrue(
+                    resultado.esExitosa(),
+                    "La reserva debió crearse."
+            );
 
             String idReserva = resultado.getReserva().getId();
 
-            // 3) 1001 debe recibir la alerta de la reserva de 1002
-            NotificacionReserva alerta = (NotificacionReserva) entrada.readObject();
+            try {
+                // 5. La alerta llega por la conexión del login.
+                Object mensaje = entrada.readObject();
 
-            assertEquals(idReserva, alerta.getReservaId());
-            assertEquals("Prueba de integracion", alerta.getActividad());
-            assertEquals("1002", alerta.getFuncionarioId());
+                assertInstanceOf(
+                        NotificacionReserva.class,
+                        mensaje
+                );
 
-            // 4) Limpieza: se cancela la reserva para no dejarla ocupando el recurso
-            Respuesta cancelada = enviar(Operaciones.RESERVA_CANCELAR,
-                    new Object[]{"1002", idReserva});
+                NotificacionReserva alerta =
+                        (NotificacionReserva) mensaje;
 
-            assertTrue(cancelada.isExito());
-            assertTrue(((ResultadoReserva) cancelada.getDatos()).esExitosa());
+                assertEquals(idReserva, alerta.getReservaId());
+                assertEquals(
+                        "Prueba de integracion",
+                        alerta.getActividad()
+                );
+                assertEquals("1002", alerta.getFuncionarioId());
+
+                // 6. Después de la alerta, puede pedir otra respuesta.
+                Respuesta otroPing = enviarEnConexion(
+                        salida,
+                        entrada,
+                        Operaciones.PING,
+                        null
+                );
+
+                assertTrue(otroPing.isExito());
+                assertEquals("PONG", otroPing.getDatos());
+
+                // 7. Cerrar la suscripción en esa conexión.
+                Respuesta cierre = enviarEnConexion(
+                        salida,
+                        entrada,
+                        "ALERTAS_DESUSCRIBIR",
+                        null
+                );
+
+                assertTrue(cierre.isExito());
+
+            } finally {
+                // Cancelar la reserva incluso si falla la comprobación.
+                Respuesta cancelada = enviar(
+                        Operaciones.RESERVA_CANCELAR,
+                        new Object[]{"1002", idReserva}
+                );
+
+                assertTrue(cancelada.isExito());
+
+                ResultadoReserva cancelacion =
+                        (ResultadoReserva) cancelada.getDatos();
+
+                assertTrue(cancelacion.esExitosa());
+            }
         }
     }
 }

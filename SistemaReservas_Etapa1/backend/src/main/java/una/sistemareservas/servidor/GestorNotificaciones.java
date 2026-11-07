@@ -46,6 +46,7 @@ public class GestorNotificaciones {
                 synchronized (salida) {
                     salida.writeObject(notificacion);
                     salida.flush();
+                    salida.reset();
                 }
             } catch (IOException e) {
                 // el cliente se desconectó: lo sacamos de la lista

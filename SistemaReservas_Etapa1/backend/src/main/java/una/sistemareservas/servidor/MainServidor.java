@@ -14,12 +14,7 @@ public class MainServidor {
 
             System.out.println("Iniciando servidor en puerto 5000...");
 
-            Thread hiloAlertas = new Thread(() -> new ServidorAlertas(5001).iniciar());
-            hiloAlertas.setDaemon(true);
-            hiloAlertas.start();
-
             ServidorSocket servidor = new ServidorSocket(5000);
-
             servidor.iniciar();
 
         } catch (Exception e) {
