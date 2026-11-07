@@ -1,9 +1,6 @@
 # Sistema de Reserva de Recursos - Proyecto #2
 
-EIF206 Programación 3, Universidad Nacional
-
 ## Integrantes
-
 - Derickson Aguilar Sanchez
 - Allan Sanchez Ramirez
 
@@ -47,12 +44,10 @@ EIF206 Programación 3, Universidad Nacional
 
 Para ver las alertas: abrir dos ventanas, entrar con `1001` y `1002`, y crear una reserva con `1002`.
 
-### Extracción con IA (opcional)
+### Extracción con IA
 
 Requiere una clave de Gemini en un archivo `config.properties` junto al servidor:
 
 ```properties
 GEMINI_API_KEY=su-clave-aqui
 ```
-
-El resto del sistema funciona sin ella.
