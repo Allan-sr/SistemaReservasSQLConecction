@@ -372,6 +372,13 @@ public class ServidorSocket {
                             ? r.getFuncionario().getNombre()
                             : r.getFuncionarioId();
 
+                    java.util.List<String> recursos = new java.util.ArrayList<>();
+                    if (r.getRecursos() != null) {
+                        for (una.sistemareservas.modelo.Recurso rec : r.getRecursos()) {
+                            recursos.add(rec.getDescripcion() + " (" + rec.getId() + ")");
+                        }
+                    }
+
                     GestorNotificaciones.getInstancia().notificarATodosMenos(
                             funcionarioId,
                             new una.sistemareservas.negocio.NotificacionReserva(
@@ -380,7 +387,9 @@ public class ServidorSocket {
                                     r.getFuncionarioId(),
                                     nombre,
                                     r.getFecha().toString(),
-                                    r.getHoraInicio() + " - " + r.getHoraFin()
+                                    r.getHoraInicio().toString(),
+                                    r.getHoraFin().toString(),
+                                    recursos
                             )
                     );
                 }

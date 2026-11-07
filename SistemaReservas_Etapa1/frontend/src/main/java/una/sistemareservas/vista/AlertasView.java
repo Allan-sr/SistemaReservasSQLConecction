@@ -112,20 +112,41 @@ public class AlertasView extends JPanel {
         listaAlertas.repaint();
     }
 
-    public void mostrarDetalle(
-            String actividad,
-            String funcionario,
-            String fecha,
-            String hora) {
+    public void mostrarDetalle(String actividad, String encargado,
+                               String fecha, String desde, String hasta,
+                               java.util.List<String> recursos) {
+
+        JPanel datos = new JPanel(new GridLayout(0, 2, 8, 6));
+        datos.add(new JLabel("Encargado:"));
+        datos.add(new JLabel(encargado));
+        datos.add(new JLabel("Fecha:"));
+        datos.add(new JLabel(fecha));
+        datos.add(new JLabel("Desde:"));
+        datos.add(new JLabel(desde));
+        datos.add(new JLabel("Hasta:"));
+        datos.add(new JLabel(hasta));
+
+        JTextArea listaRecursos = new JTextArea(
+                recursos == null || recursos.isEmpty()
+                        ? "(sin recursos)"
+                        : String.join("\n", recursos));
+        listaRecursos.setEditable(false);
+        listaRecursos.setRows(4);
+        listaRecursos.setColumns(28);
+
+        JPanel bloqueRecursos = new JPanel(new BorderLayout(0, 4));
+        bloqueRecursos.add(new JLabel("Recursos:"), BorderLayout.NORTH);
+        bloqueRecursos.add(new JScrollPane(listaRecursos), BorderLayout.CENTER);
+
+        JPanel contenido = new JPanel(new BorderLayout(0, 10));
+        contenido.add(datos, BorderLayout.NORTH);
+        contenido.add(bloqueRecursos, BorderLayout.CENTER);
 
         JOptionPane.showMessageDialog(
                 this,
-                "Actividad: " + actividad
-                        + "\nFuncionario: " + funcionario
-                        + "\nFecha: " + fecha
-                        + "\nHora: " + hora,
-                "Detalle de reserva",
-                JOptionPane.INFORMATION_MESSAGE
+                contenido,
+                actividad,
+                JOptionPane.PLAIN_MESSAGE
         );
     }
 

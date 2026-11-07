@@ -47,7 +47,9 @@ public class AlertasController {
                 notificacion.getActividad(),
                 notificacion.getFuncionarioNombre(),
                 notificacion.getFecha(),
-                notificacion.getHora()
+                notificacion.getHoraInicio(),
+                notificacion.getHoraFin(),
+                notificacion.getRecursos()
         );
     }
 
